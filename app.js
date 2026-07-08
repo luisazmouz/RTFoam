@@ -14,6 +14,7 @@
    ============================================================ */
 
 const Lib = window.PlanLib;
+const APP_VERSION = 5; // must match PlanLib.VERSION — mismatch means stale files on the server
 const LS_DESIGNS = 'slipstream_designs_v1';
 const LS_LOGS = 'slipstream_flightlog_v1';
 
@@ -158,12 +159,18 @@ function populateFormFromKnowledge(parsed) {
 function renderKnowledgeDebug() {
   const el = document.getElementById('knowledge-debug');
   if (!el) return;
+  const libV = (window.PlanLib && window.PlanLib.VERSION) || 0;
+  const versionLine = libV === APP_VERSION
+    ? `BUILD v${APP_VERSION} · LIB v${libV} — files in sync`
+    : `<span style="color:var(--danger);">STALE FILES: app.js is v${APP_VERSION} but plan-lib.js is v${libV || '?'} — re-upload ALL site files together and hard-refresh</span>`;
   const k = state.knowledgeStatus;
   if (k.loaded) {
-    el.innerHTML = `<span style="color:#6FCF8E;">KNOWLEDGE LOADED: YES</span> — ${k.files.length} files, ${k.totalChars.toLocaleString()} chars<br>` +
+    el.innerHTML = versionLine + '<br>' +
+      `<span style="color:#6FCF8E;">KNOWLEDGE LOADED: YES</span> — ${k.files.length} files, ${k.totalChars.toLocaleString()} chars<br>` +
       k.files.map(f => '· ' + h(f)).join('<br>');
   } else {
-    el.innerHTML = `<span style="color:var(--danger);">KNOWLEDGE LOADED: NO</span>${k.error ? ' — ' + h(k.error) : ''}`;
+    el.innerHTML = versionLine + '<br>' +
+      `<span style="color:var(--danger);">KNOWLEDGE LOADED: NO</span>${k.error ? ' — ' + h(k.error) : ''}`;
   }
 }
 
@@ -296,6 +303,14 @@ async function onGenerate() {
     const { system, messages } = Lib.buildPrompt(formWithKnowledge, memory, knowledge.text);
     const text = await llmComplete(system, messages);
     const parsed = Lib.parseDesign(text, formWithKnowledge, knowledge.parsed);
+    // sanity assertion: the generated tail must match the requested control configuration
+    const ccWanted = knowledge.parsed.designRules.controlConfigurations[state.form.controlConfig];
+    if (ccWanted) {
+      if (ccWanted.hasHorizontalStab && parsed.params.hStabSpanMM === 0)
+        throw new Error('Internal mismatch: requested "' + state.form.controlConfig + '" but generated no horizontal tail. Check for stale files (see debug panel).');
+      if (!ccWanted.hasHorizontalStab && parsed.params.hStabSpanMM > 0)
+        throw new Error('Internal mismatch: requested "' + state.form.controlConfig + '" but generated a horizontal tail. Check for stale files (see debug panel).');
+    }
     const design = { id: 'd' + Date.now(), userMade: true, createdAt: Date.now(), ...parsed };
     state.designs.unshift(design);
     persist();

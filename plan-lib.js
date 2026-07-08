@@ -65,12 +65,17 @@ function buildPlanSVG(p, c, opts) {
   const hasHStab = p.hStabSpanMM >= 50;
   const hasVStab = p.vStabHeightMM >= 30;
   const isVtail = p.tailType === 'vtail';
+  const isFlyingWing = p.tailType === 'flyingwing';
   const fusH = p.fuselageHeightMM, fusL = p.fuselageLengthMM;
   const row2H = Math.max(fusH, hasHStab ? p.hStabChordMM : 0, (hasVStab && !isVtail) ? p.vStabHeightMM : 0);
   const row2W = fusL + 70 + (hasHStab ? p.hStabSpanMM + 70 : 0) + ((hasVStab && !isVtail) ? p.vStabChordMM : 0);
   const titleW = 340, titleH = 96;
   const W = Math.max(span + 2 * M, row2W + 2 * M, 780);
-  const wingY = M + 26;
+  // assembled top view (reference drawing) occupies the first row
+  const asmS = 0.5; // assembled view scale
+  const asmTop = M + 30;
+  const asmLen = Math.max(fusL, p.sweepMM + p.rootChordMM) * asmS;
+  const wingY = asmTop + asmLen + 74;
   const dimGap = 56;
   const wingSplit = span > panelLimit;
   const row2Y = wingY + wh + dimGap + (wingSplit ? 24 : 0) + 40;
@@ -99,6 +104,62 @@ function buildPlanSVG(p, c, opts) {
   for (let y = 0; y <= H; y += 50) gl.push(`M 0 ${y} H ${W}`);
   S.push(`<path d="${gl.join(' ')}" stroke="${c.grid}" stroke-width="1" fill="none"/>`);
   S.push(`<rect x="14" y="14" width="${W - 28}" height="${H - 28}" fill="none" stroke="${c.dim}" stroke-width="1"/>`);
+
+  // ===== ASSEMBLED TOP VIEW (reference — shows what the finished aircraft looks like) =====
+  {
+    const ay = asmTop;
+    const nose = p.noseLengthMM * asmS;
+    const fl = fusL * asmS;
+    const fw = Math.max(p.fuselageHeightMM * 0.62, 26) * asmS * 2; // top-view fuselage width
+    // wing root LE position along the fuselage: flying wings sit far aft, tailed planes ~just after the nose
+    const wingRootLE = isFlyingWing ? ay + Math.max(fl - p.rootChordMM * asmS - 8, nose * 0.6) : ay + nose + fl * 0.06;
+    // fuselage (top view): pointed nose, tapered tail
+    const fus = [
+      [cx, ay], [cx + fw / 2, ay + nose], [cx + fw / 2, ay + fl * 0.72],
+      [cx + fw * 0.22, ay + fl], [cx - fw * 0.22, ay + fl], [cx - fw / 2, ay + fl * 0.72], [cx - fw / 2, ay + nose]
+    ];
+    S.push(`<polygon points="${pts(fus)}" ${stroke}/>`);
+    // wing planform in place
+    const ws2 = s2 * asmS, swp = p.sweepMM * asmS, rc = p.rootChordMM * asmS, tc = p.tipChordMM * asmS;
+    const aw = [
+      [cx - ws2, wingRootLE + swp], [cx, wingRootLE], [cx + ws2, wingRootLE + swp],
+      [cx + ws2, wingRootLE + swp + tc], [cx, wingRootLE + rc], [cx - ws2, wingRootLE + swp + tc]
+    ];
+    S.push(`<polygon points="${pts(aw)}" ${stroke}/>`);
+    if (isFlyingWing) {
+      // winglets at the tips
+      for (const sgn of [-1, 1]) {
+        S.push(`<rect x="${num(cx + sgn * ws2 - (sgn > 0 ? 0 : 3))}" y="${num(wingRootLE + swp - 4)}" width="3" height="${num(tc + 8)}" fill="${c.line}"/>`);
+      }
+    } else if (hasHStab) {
+      const hs2 = (p.hStabSpanMM / 2) * asmS, hc = p.hStabChordMM * asmS;
+      const hLE = ay + fl - hc - 4;
+      if (isVtail) {
+        // V-tail seen from above: two swept panels splayed outward
+        for (const sgn of [-1, 1]) {
+          const vt = [[cx, hLE + hc * 0.2], [cx + sgn * hs2 * 0.85, hLE], [cx + sgn * hs2 * 0.85, hLE + hc * 0.75], [cx, hLE + hc]];
+          S.push(`<polygon points="${pts(vt)}" ${stroke}/>`);
+        }
+      } else {
+        const ht = [
+          [cx - hs2, hLE + hc * 0.25], [cx, hLE], [cx + hs2, hLE + hc * 0.25],
+          [cx + hs2, hLE + hc], [cx - hs2, hLE + hc]
+        ];
+        S.push(`<polygon points="${pts(ht)}" ${stroke}/>`);
+      }
+    }
+    // fin from above (thin centerline) — not for V-tail (its panels replace the fin)
+    if (hasVStab && !isVtail) {
+      S.push(`<rect x="${num(cx - 1.5)}" y="${num(ay + fl - p.vStabChordMM * asmS - 2)}" width="3" height="${num(p.vStabChordMM * asmS)}" fill="${c.line}"/>`);
+    }
+    // CG marker on the assembled view
+    const acg = wingRootLE + st.cgFromRootLE * asmS;
+    S.push(`<circle cx="${cx}" cy="${num(acg)}" r="6" ${ref}/>`);
+    S.push(`<line x1="${num(cx - 10)}" y1="${num(acg)}" x2="${num(cx + 10)}" y2="${num(acg)}" ${ref}/>`);
+    S.push(`<line x1="${cx}" y1="${num(acg - 10)}" x2="${cx}" y2="${num(acg + 10)}" ${ref}/>`);
+    const cfg = isFlyingWing ? 'FLYING WING — ELEVONS' : isVtail ? 'V-TAIL' : p.hasRudder ? 'FULL TAIL + RUDDER' : 'CONVENTIONAL TAIL';
+    S.push(text(cx - Math.max(ws2, fw / 2), ay - 16, `ASSEMBLED TOP VIEW — ${cfg} · SCALE 1:2 · REFERENCE, DO NOT CUT`, 12, c.line, 'start', 600));
+  }
 
   // ===== WING (plan view) =====
   const wY = wingY;
@@ -333,7 +394,9 @@ function parseDesign(text, form, knowledge) {
   const rootChordMM = Math.max(val.minRootChordMM, Math.round((2 * avgChord) / (1 + taper)));
   const tipChordMM = Math.max(val.minTipChordMM, Math.round(taper * rootChordMM));
 
-  const sweepMM = clampInt(j.sweepMM, spec.rootSweepMM[0], spec.rootSweepMM[1], mid(spec.rootSweepMM));
+  const sweepMM = isWing
+    ? clampInt(j.sweepMM, Math.max(spec.rootSweepMM[0], rules.flyingWingMinSweepMM || 120), Math.max(spec.rootSweepMM[1], rules.flyingWingMinSweepMM || 120), Math.max(mid(spec.rootSweepMM), rules.flyingWingMinSweepMM || 120))
+    : clampInt(j.sweepMM, spec.rootSweepMM[0], spec.rootSweepMM[1], mid(spec.rootSweepMM));
 
   const areaMM2 = ((rootChordMM + tipChordMM) / 2) * wingspanMM;
   const areaDM2 = areaMM2 / 10000;
@@ -428,6 +491,7 @@ const THEMES = {
 const PRINT_COLORS = { bg: '#FFFFFF', line: '#1E3A5F', dim: '#5A6B80', accent: '#C25E2E', grid: 'rgba(30,58,95,0.12)' };
 
 window.PlanLib = {
-  computeStats, buildPlanSVG, SEED_DESIGNS, buildPrompt, parseDesign, THEMES, PRINT_COLORS
+  computeStats, buildPlanSVG, SEED_DESIGNS, buildPrompt, parseDesign, THEMES, PRINT_COLORS,
+  VERSION: 5
 };
 })();

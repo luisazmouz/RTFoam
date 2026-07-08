@@ -6,6 +6,7 @@
   "noseLengthPercentFuselage": [15, 22],
   "tailArmToMACRatio": [2.5, 3.5],
   "wingPanelLimitMM": 800,
+  "flyingWingMinSweepMM": 120,
   "horizontalStabAspectRatio": 3.5,
   "verticalFinAspectRatio": 1.3,
   "controlConfigurations": {
