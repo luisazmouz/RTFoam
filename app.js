@@ -65,12 +65,13 @@ async function loadKnowledgeFiles() {
 
   for (const path of KNOWLEDGE_FILES) {
     let response;
+    const url = new URL(path, document.baseURI).href;
     try {
-      response = await fetch(path, { cache: 'no-store' });
+      response = await fetch(url, { cache: 'no-store' });
     } catch (e) {
-      throw new Error('Knowledge file missing: ' + path);
+      throw new Error('Knowledge file missing: ' + path + ' (fetch failed — if you are opening this file directly as file://, serve it over http:// instead, e.g. `npx serve` or any static host)');
     }
-    if (!response.ok) throw new Error('Knowledge file missing: ' + path);
+    if (!response.ok) throw new Error('Knowledge file missing: ' + path + ' (HTTP ' + response.status + ' at ' + url + ')');
     const text = await response.text();
     if (!text.trim()) throw new Error('Knowledge file empty: ' + path);
 
