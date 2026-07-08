@@ -1,0 +1,4 @@
+[
+  { "id": "5mm-foamboard", "label": "5 mm foam board", "thicknessMM": 5, "note": "Standard — most rigid, best default for a first build." },
+  { "id": "3mm-depron", "label": "3 mm depron", "thicknessMM": 3, "note": "Lighter but less rigid — best for small, low-wing-loading models." }
+]

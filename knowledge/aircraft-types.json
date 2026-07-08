@@ -1,0 +1,56 @@
+{
+  "Trainer": {
+    "wingLoadingGPerDM2": [25, 35],
+    "aspectRatio": [5.5, 7.0],
+    "cgPercentMAC": [28, 30],
+    "tailVolumeCoefficient": 0.55,
+    "verticalFinPercentOfWingArea": [8, 10],
+    "rootSweepMM": [0, 40],
+    "notes": "Flat-bottom or semi-symmetrical section, generous dihedral, forgiving stall. Never sweep the wing meaningfully."
+  },
+  "Sport": {
+    "wingLoadingGPerDM2": [35, 50],
+    "aspectRatio": [5.0, 6.0],
+    "cgPercentMAC": [30, 32],
+    "tailVolumeCoefficient": 0.50,
+    "verticalFinPercentOfWingArea": [8, 10],
+    "rootSweepMM": [0, 60],
+    "notes": "Mid-wing, moderate dihedral, comfortable with loops and rolls."
+  },
+  "Fighter": {
+    "wingLoadingGPerDM2": [50, 70],
+    "aspectRatio": [3.5, 5.0],
+    "cgPercentMAC": [25, 28],
+    "tailVolumeCoefficient": 0.45,
+    "verticalFinPercentOfWingArea": [10, 14],
+    "rootSweepMM": [60, 220],
+    "notes": "Swept, low-aspect-ratio wing; smaller, more effective control surfaces; fast and less forgiving — flag this in build notes."
+  },
+  "Experimental": {
+    "wingLoadingGPerDM2": [35, 55],
+    "aspectRatio": [4.0, 8.0],
+    "cgPercentMAC": [22, 30],
+    "tailVolumeCoefficient": 0.50,
+    "verticalFinPercentOfWingArea": [8, 12],
+    "rootSweepMM": [0, 150],
+    "notes": "Unconventional layout. With the Elevons-only control configuration this becomes a flying wing: use the low end of the CG band and the high end of the sweep band for pitch stability without a horizontal tail."
+  },
+  "Aerobatic": {
+    "wingLoadingGPerDM2": [40, 55],
+    "aspectRatio": [5.0, 6.0],
+    "cgPercentMAC": [30, 33],
+    "tailVolumeCoefficient": 0.55,
+    "verticalFinPercentOfWingArea": [10, 12],
+    "rootSweepMM": [0, 40],
+    "notes": "Near-neutral CG for symmetric up/down performance, oversized control surfaces and tail for authority. Wing section should be symmetrical."
+  },
+  "Warbird": {
+    "wingLoadingGPerDM2": [45, 65],
+    "aspectRatio": [5.0, 6.5],
+    "cgPercentMAC": [28, 31],
+    "tailVolumeCoefficient": 0.55,
+    "verticalFinPercentOfWingArea": [9, 11],
+    "rootSweepMM": [20, 120],
+    "notes": "Scale-inspired proportions: moderate taper, slightly heavier wing loading than a pure sport model is normal and expected."
+  }
+}

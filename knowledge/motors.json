@@ -1,0 +1,7 @@
+[
+  { "id": "1806-2280kv", "label": "1806 · 2280KV", "class": "small park flyer" },
+  { "id": "2205-2300kv", "label": "2205 · 2300KV", "class": "sport / lightweight fighter" },
+  { "id": "2212-1000kv", "label": "2212 · 1000KV", "class": "trainer / general purpose" },
+  { "id": "2212-1400kv", "label": "2212 · 1400KV", "class": "sport / aerobatic" },
+  { "id": "2814-900kv", "label": "2814 · 900KV", "class": "larger warbird / powered glider" }
+]

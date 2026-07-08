@@ -1,0 +1,11 @@
+{
+  "wingspanMM": [500, 1600],
+  "fuselageLengthMM": [200, 1400],
+  "fuselageHeightMM": [45, 130],
+  "minRootChordMM": 60,
+  "minTipChordMM": 30,
+  "minHStabSpanMM": 140,
+  "minVStabHeightMM": 60,
+  "minWeightG": 80,
+  "note": "The app clamps every generated dimension into these bounds regardless of what the model returns, so a bad or extreme model reply cannot produce a structurally nonsensical airframe."
+}

@@ -12,19 +12,25 @@
      FILES
        index.html   — this file: page structure + owner CONFIG
        styles.css   — ALL styling and animations (edit look here)
-       app.js       — app behavior (views, AI calls, saving)
-       plan-lib.js  — aircraft geometry, stats, SVG cut-sheet renderer
-       worker.js    — deploy to Cloudflare Workers to hide your AI key
+       app.js       — state + event handlers only (no big HTML strings)
+       plan-lib.js  — geometry/rendering math only (NO design bands)
+       worker.js    — Cloudflare Worker: hides your AI key, forwards prompts only
+       knowledge/   — REQUIRED design source of truth (report.md +
+                      JSON bands). Generation refuses to run if any
+                      file here is missing — see knowledge/README.md.
 
-     Editing styles.css / app.js / this file does NOT affect the
-     Cloudflare worker or Supabase — those are configured only by
-     the CONFIG block below and the worker's own secrets.
+     Editing this file / styles.css / app.js does NOT affect the
+     Cloudflare worker or Supabase — those are wired only through the
+     CONFIG block below and the worker's own secrets. Editing files in
+     knowledge/ changes how aircraft are designed — no redeploy needed.
      ============================================================ -->
 
 <script>
 const CONFIG = {
   // 1) AI — deploy worker.js (see instructions inside it), then put
-  //    the worker URL here. Your API key stays on the server.
+  //    the worker URL here. Your API key stays on the server. The
+  //    worker ONLY forwards the prompt this site builds — it adds no
+  //    design rules of its own. Design knowledge lives in knowledge/.
   API_PROXY_URL: "https://rtfoam.luisazmouz.workers.dev", // e.g. "https://slipstream-ai.yourname.workers.dev"
 
   // 2) SUPABASE (optional, shared public gallery + saving) —
@@ -46,7 +52,7 @@ const CONFIG = {
 <header>
   <div class="logo" onclick="go('home')">
     <span class="mark"></span>
-    <span class="name">RTFoam</span>
+    <span class="name">SLIPSTREAM</span>
     <span class="sub">FOAMWORKS</span>
   </div>
   <nav>
@@ -55,7 +61,151 @@ const CONFIG = {
   </nav>
 </header>
 
-<main id="app"><!-- views render here (see app.js) --></main>
+<main>
+
+  <!-- ============ HOME / HANGAR ============ -->
+  <section id="view-home" class="view">
+    <section class="hero">
+      <div class="kicker rise rise-1">AERO-TRAINED MODEL // PARAMETRIC FOAM-BOARD AIRFRAMES</div>
+      <h1 class="rise rise-2">Describe the mission.<br>Download the airframe.</h1>
+      <p class="rise rise-3">Slipstream sizes real, flyable foam-board aircraft — wing loading, tail volume, and center of gravity computed from real design equations — then drafts a full-size SVG cut sheet ready to print, cut, and fly.</p>
+      <div class="hero-cta rise rise-4">
+        <button class="btn-solid" onclick="go('new')">+ NEW DESIGN</button>
+        <span class="label">SVG · PDF · 1:1 SCALE · CG MARKED</span>
+      </div>
+    </section>
+    <section>
+      <div class="gallery-head">
+        <div style="display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;">
+          <h2>THE HANGAR</h2>
+          <span class="label" id="hangar-counts">00 AIRFRAMES · 00 FLIGHT REPORTS</span>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-ghost small" onclick="onExportHangar()">↓ EXPORT</button>
+          <label class="btn-ghost small btn" style="display:inline-block;">↑ IMPORT<input type="file" id="import-input" accept="application/json,.json" style="display:none;" onchange="onImportHangar(this)"></label>
+        </div>
+      </div>
+      <div class="cards" id="cards"><!-- populated by app.js --></div>
+    </section>
+  </section>
+
+  <!-- ============ NEW DESIGN ============ -->
+  <section id="view-new" class="view" hidden>
+    <div class="kicker" style="margin-bottom:12px;">NEW AIRFRAME REQUEST</div>
+    <h1 class="page-title">Mission parameters</h1>
+    <div class="two-col">
+      <div class="panel form-panel">
+
+        <div class="field">
+          <span class="label">AIRFRAME STYLE</span>
+          <div class="seg" id="style-buttons" style="display:grid; grid-template-columns:1fr 1fr 1fr;">
+            <button data-style="Trainer" onclick="onStyleChange('Trainer')">TRAINER</button>
+            <button data-style="Fighter" onclick="onStyleChange('Fighter')">FIGHTER</button>
+            <button data-style="Experimental" onclick="onStyleChange('Experimental')">EXPERIMENTAL</button>
+            <button data-style="Aerobatic" onclick="onStyleChange('Aerobatic')">AEROBATIC</button>
+            <button data-style="Warbird" onclick="onStyleChange('Warbird')">WARBIRD</button>
+            <button data-style="Sport" onclick="onStyleChange('Sport')">SPORT</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-row"><span class="label">WINGSPAN</span><span class="readout" id="out-span">900 MM</span></div>
+          <input type="range" id="wingspan-slider" min="500" max="1600" step="20" value="900" oninput="onWingspanChange(this.value)">
+          <span class="label" id="wingspan-note" style="font-size:10px; letter-spacing:1px; min-height:14px; display:block;"></span>
+        </div>
+
+        <div class="field">
+          <span class="label">MOTOR</span>
+          <div class="seg" id="motor-buttons">
+            <button data-motor="1806 · 2280KV" onclick="onMotorChange('1806 · 2280KV')">1806 · 2280KV</button>
+            <button data-motor="2205 · 2300KV" onclick="onMotorChange('2205 · 2300KV')">2205 · 2300KV</button>
+            <button data-motor="2212 · 1000KV" onclick="onMotorChange('2212 · 1000KV')">2212 · 1000KV</button>
+            <button data-motor="2212 · 1400KV" onclick="onMotorChange('2212 · 1400KV')">2212 · 1400KV</button>
+            <button data-motor="2814 · 900KV" onclick="onMotorChange('2814 · 900KV')">2814 · 900KV</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="label">CONTROL CONFIGURATION</span>
+          <div class="seg" id="control-config-buttons" style="display:grid; grid-template-columns:1fr 1fr;">
+            <button data-cc="Ailerons + Elevator" onclick="onControlConfigChange('Ailerons + Elevator')">AILERONS + ELEVATOR</button>
+            <button data-cc="Elevons only" onclick="onControlConfigChange('Elevons only')">ELEVONS ONLY</button>
+            <button data-cc="Ailerons + Elevator + Rudder" onclick="onControlConfigChange('Ailerons + Elevator + Rudder')">FULL TAIL + RUDDER</button>
+            <button data-cc="V-tail" onclick="onControlConfigChange('V-tail')">V-TAIL</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="label">MATERIAL</span>
+          <div class="seg" id="foam-buttons">
+            <button data-foam="5 mm foam board" onclick="onFoamChange('5 mm foam board')">5 MM FOAM BOARD</button>
+            <button data-foam="3 mm depron" onclick="onFoamChange('3 mm depron')">3 MM DEPRON</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="label">PILOT NOTES — OPTIONAL</span>
+          <input type="text" id="form-notes" oninput="onNotesChange(this.value)" placeholder="e.g. FPV camera up front, needs to hand-launch, gusty field…">
+        </div>
+
+        <button class="btn-solid" id="btn-generate" style="padding:18px; font-size:14px;" onclick="onGenerate()">⚙ GENERATE AIRFRAME</button>
+      </div>
+
+      <div class="panel console">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:18px;">
+          <span style="width:8px; height:8px; border-radius:50%; background:var(--accent); animation:blink 1.6s infinite;"></span>
+          <span class="label" style="letter-spacing:3px;">FLIGHT COMPUTER</span>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:9px; min-height:220px;" id="console-body"></div>
+        <div class="err" id="gen-error" hidden></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:20px; padding:16px 20px; font-family:var(--mono); font-size:10.5px; letter-spacing:0.5px; line-height:1.8; color:var(--dim);" id="knowledge-debug">CHECKING KNOWLEDGE FILES…</div>
+  </section>
+
+  <!-- ============ DETAIL ============ -->
+  <section id="view-detail" class="view" hidden>
+    <button class="btn-ghost" style="border:none; padding:8px 0; color:var(--dim); margin-bottom:22px;" onclick="go('home')">← BACK TO HANGAR</button>
+    <div style="display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; margin-bottom:8px;">
+      <h1 id="detail-name" style="margin:0; font-size:clamp(30px,5vw,42px); font-weight:800; letter-spacing:-0.5px;"></h1>
+      <span class="tag" id="detail-tag" style="font-size:11px; padding:4px 10px;"></span>
+    </div>
+    <p id="detail-desc" style="margin:0 0 30px; max-width:680px; font-size:16px; line-height:1.55; color:var(--dim);"></p>
+    <div class="detail-cols">
+      <div class="detail-plan" id="detail-plan"></div>
+      <div class="detail-rail">
+        <div class="panel" style="padding:20px;">
+          <div class="label" style="letter-spacing:3px; margin-bottom:14px;">FLIGHT DATA</div>
+          <div id="detail-stats"></div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <button class="btn-solid" style="padding:15px;" onclick="onDownloadSvg()">↓ DOWNLOAD SVG</button>
+          <button class="btn-ghost" style="padding:15px; font-size:13px;" onclick="onPrintPdf()">⎙ PRINT / SAVE PDF</button>
+          <button class="btn-ghost" id="btn-delete" style="font-size:11px; padding:12px; border-color:rgba(232,106,94,0.5); color:var(--danger);" onclick="onDeleteDesign()" hidden>DELETE FROM HANGAR</button>
+          <span class="label" style="font-size:10.5px; letter-spacing:1px; line-height:1.6;">SVG IS DRAWN AT TRUE SCALE (MM). PRINT AT 100% — POSTER/TILE MODE FOR LARGE PARTS.</span>
+        </div>
+        <div class="panel" style="padding:20px;">
+          <div class="label" style="letter-spacing:3px; margin-bottom:8px;">FLIGHT REPORT</div>
+          <div class="label" style="font-size:10.5px; letter-spacing:0.5px; line-height:1.6; margin-bottom:14px;">HOW DID IT FLY? REPORTS TRAIN THE MODEL FOR YOUR NEXT DESIGNS.</div>
+          <div class="seg" id="verdict-buttons" style="margin-bottom:14px;">
+            <button data-verdict="FLEW GREAT" style="flex:0 1 auto; font-size:10.5px; padding:8px 10px;" onclick="onVerdictClick('FLEW GREAT')">FLEW GREAT</button>
+            <button data-verdict="NOSE-HEAVY" style="flex:0 1 auto; font-size:10.5px; padding:8px 10px;" onclick="onVerdictClick('NOSE-HEAVY')">NOSE-HEAVY</button>
+            <button data-verdict="TAIL-HEAVY" style="flex:0 1 auto; font-size:10.5px; padding:8px 10px;" onclick="onVerdictClick('TAIL-HEAVY')">TAIL-HEAVY</button>
+            <button data-verdict="TOO FAST" style="flex:0 1 auto; font-size:10.5px; padding:8px 10px;" onclick="onVerdictClick('TOO FAST')">TOO FAST</button>
+            <button data-verdict="STALLED / CRASHED" style="flex:0 1 auto; font-size:10.5px; padding:8px 10px;" onclick="onVerdictClick('STALLED / CRASHED')">STALLED / CRASHED</button>
+          </div>
+          <input type="text" id="report-note" oninput="onReportNoteChange(this.value)" placeholder="Optional detail — e.g. needed 20g nose weight" style="margin-bottom:12px;">
+          <button class="btn-ghost" id="btn-save-report" style="width:100%; font-size:12px; font-weight:600; padding:13px; border-color:var(--accent); color:var(--accent);" onclick="onSaveReport()">FILE FLIGHT REPORT</button>
+        </div>
+        <div class="panel" style="padding:20px;">
+          <div class="label" style="letter-spacing:3px; margin-bottom:14px;">BUILD NOTES</div>
+          <div id="detail-notes" style="display:flex; flex-direction:column; gap:12px;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
 
 <footer>
   <span>SLIPSTREAM FOAMWORKS — AI-DRAFTED FOAM-BOARD AIRCRAFT</span>
