@@ -1,4 +1,4 @@
-# Slipstream Foamworks — publish guide
+# RTFoam — publish guide
 
 Files, all human-editable:
 
