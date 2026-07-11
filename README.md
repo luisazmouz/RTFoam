@@ -1,5 +1,8 @@
 # RTFoam — publish guide
 
+*WORK IN PROGRESS*
+An AI-assisted design tool for foam RC aircraft. Describe the plane you want, and it generates a buildable design — geometry, control layout, motor/material choices — validated against an explicit, editable rulebook, then rendered as plans you can cut and build.
+
 Files, all human-editable:
 
 - **index.html** — page structure + the owner CONFIG block (proxy URL, Supabase).
