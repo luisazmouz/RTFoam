@@ -1,4 +1,4 @@
-# Slipstream Foamworks — GPT-5.6 engineering build v7
+# RTFOAM Foamworks — GPT-5.6 engineering build v7
 
 This build uses an OpenAI Responses API proxy, structured JSON output, engineering validation, flight-report calibration, and deterministic hangar duplicate detection.
 
@@ -51,3 +51,8 @@ The browser fetches them with `cache: no-store`. Missing or malformed knowledge 
 - Explicit cross-validation rules
 - Knowledge-driven novelty metrics and retry thresholds
 - Parser enforcement of motor/material/style compatibility
+
+
+## V8 interface
+
+The design form asks for style, wingspan, compatible control configuration, and material. The application recommends the motor, battery-cell count, and propeller after solving the aircraft geometry and all-up weight. Detail pages use an exploded build dossier while SVG downloads remain true-scale cut sheets.

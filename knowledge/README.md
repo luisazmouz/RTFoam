@@ -1,14 +1,5 @@
-# /knowledge/ — mandatory engineering source of truth
+# RTFOAM knowledge base — version 8
 
-The app fetches every file below with `cache: no-store` before each generation. Missing, empty, malformed, or incompatible knowledge disables generation.
+All files in this folder are loaded fresh before each generation. The application refuses to generate when a required file is missing or empty.
 
-- `report.md`: reasoning sequence and coupled aerodynamic guidance.
-- `equations.json`: equations and derived comparison quantities.
-- `aircraft-types.json`: style missions, safe/preferred bands, proportions, and flying-wing overrides.
-- `design-rules.json`: structural rules, reasoning order, and control-configuration compatibility.
-- `validation.json`: global hard limits and required cross-checks.
-- `materials.json`: mass, span, chord, and reinforcement constraints.
-- `motors.json`: weight, span, propeller, battery, thrust, and thrust-to-weight guidance.
-- `novelty.json`: hangar comparison metrics, thresholds, retry policy, and minimum material differences.
-
-Engineering bands live here; JavaScript implements equations and enforcement. Duplicate thresholds must not be hardcoded separately in the UI.
+Version 8 adds automatic power-system selection, style/control compatibility, material constraints, hangar novelty rules, and coherent presentation requirements for exploded and ready views.

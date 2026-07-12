@@ -260,7 +260,7 @@ function buildPlanSVG(p, c, opts) {
   S.push(text(tbx + 12, tby + 23, (p.name || 'UNTITLED').toUpperCase(), 15, c.line, 'start', 600));
   S.push(text(tbx + titleW - 12, tby + 23, 'SHEET 1/1', 11, c.dim, 'end'));
   S.push(text(tbx + 12, tby + 53, `AUW ${p.weightG} G · LOAD ${num(st.wingLoading)} G/DM² · AR ${num(st.ar)}`, 11));
-  S.push(text(tbx + 12, tby + 84, `SLIPSTREAM FOAMWORKS · SCALE 1:1 · ${opts.date || new Date().toISOString().slice(0, 10)}`, 11));
+  S.push(text(tbx + 12, tby + 84, `RTFOAM · SCALE 1:1 · ${opts.date || new Date().toISOString().slice(0, 10)}`, 11));
 
   const dims = opts.physical ? ` width="${num(W)}mm" height="${num(H)}mm"` : ' width="100%"';
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${num(W)} ${num(H)}"${dims} style="display:block">${S.join('')}</svg>`;
@@ -367,8 +367,8 @@ ${noveltyFeedback}`;
 - Style: ${form.style}
 - Wingspan: exactly ${form.wingspan} mm${form.wingspan > panelLimit ? ` (this will be built as panels no larger than ${panelLimit}mm each, joined at the centerline — design the planform as one continuous wing, the app handles the panel split)` : ''}
 - Control configuration: ${form.controlConfig} (${cc.tailType === 'flyingwing' ? 'flying wing — no horizontal stabilizer, elevons on the wing trailing edge' : cc.tailType === 'vtail' ? 'V-tail — two angled ruddervator panels instead of separate stab + fin' : cc.hasRudder ? 'full tail with rudder' : 'conventional fixed-fin tail'})
-- Motor: ${form.motor}
-- Material: ${form.foam}${form.notes ? `\n- Pilot notes: ${form.notes}` : ''}`;
+- Material: ${form.foam}
+- Motor system: select and recommend the safest compatible motor, battery-cell count, and propeller from motors.json after solving the airframe weight. Do not assume a user-selected motor.`;
 
   return { system, messages: [{ role: 'user', content: user }] };
 }
@@ -400,8 +400,6 @@ function parseDesign(text, form, knowledge) {
   if (Array.isArray(cc.allowedStyles) && !cc.allowedStyles.includes(form.style)) {
     throw new Error('Control configuration "' + form.controlConfig + '" is not approved for style "' + form.style + '".');
   }
-  const motorSpec = knowledge.motors.find(m => m.label === form.motor);
-  if (!motorSpec) throw new Error('Selected motor is missing from motors.json: ' + form.motor);
   const materialSpec = knowledge.materials.find(m => m.label === form.foam);
   if (!materialSpec) throw new Error('Selected material is missing from materials.json: ' + form.foam);
 
@@ -437,18 +435,46 @@ function parseDesign(text, form, knowledge) {
   const macTaper = tipChordMM / rootChordMM;
   const mac = rootChordMM * (2 / 3) * ((1 + macTaper + macTaper * macTaper) / (1 + macTaper));
 
-  // --- weight: use a model-selected target loading, constrained to the style band ---
-  const motorWeightBand = motorSpec.absoluteAllUpWeightG || val.weightG || [val.minWeightG, 1900];
-  const motorLoadingMin = motorWeightBand[0] / areaDM2;
-  const motorLoadingMax = motorWeightBand[1] / areaDM2;
-  const loadingMin = Math.max(spec.wingLoadingGPerDM2[0], motorLoadingMin);
-  const loadingMax = Math.min(spec.wingLoadingGPerDM2[1], motorLoadingMax);
-  if (loadingMin > loadingMax) {
-    throw new Error(form.motor + ' cannot power a ' + wingspanMM + ' mm ' + form.style + ' within the safe wing-loading band. Select a different motor or wingspan.');
-  }
-  const targetWingLoading = clamp(j.targetWingLoadingGPerDM2, loadingMin, loadingMax, (loadingMin + loadingMax) / 2);
+  // --- weight: solve from the style loading band. Motor selection happens
+  // after geometry and weight are known, so the user never has to guess a power system.
+  const loadingBand = isWing && spec.flyingWingOverrides?.wingLoadingGPerDM2
+    ? spec.flyingWingOverrides.wingLoadingGPerDM2
+    : spec.wingLoadingGPerDM2;
+  const targetWingLoading = clamp(j.targetWingLoadingGPerDM2, loadingBand[0], loadingBand[1], mid(loadingBand));
   const weightBounds = val.weightG || [val.minWeightG, 1900];
   const weightG = clampInt(Math.round(areaDM2 * targetWingLoading), weightBounds[0], weightBounds[1], Math.round(areaDM2 * targetWingLoading));
+
+  // Select the motor whose preferred AUW/span envelope best matches the solved aircraft.
+  // Absolute limits are mandatory. Preferred ranges and mission suitability determine score.
+  const styleWords = String(form.style || '').toLowerCase();
+  const controlWords = String(form.controlConfig || '').toLowerCase();
+  const motorCandidates = knowledge.motors.filter(m => {
+    const abs = m.absoluteAllUpWeightG || m.recommendedAllUpWeightG;
+    return abs && weightG >= abs[0] && weightG <= abs[1];
+  });
+  if (!motorCandidates.length) {
+    throw new Error('No motor in motors.json safely supports the calculated ' + weightG + ' g all-up weight. Add a suitable motor or change the wingspan/material.');
+  }
+  function rangePenalty(value, range) {
+    if (!range) return 0.35;
+    if (value >= range[0] && value <= range[1]) return 0;
+    return Math.min(2, Math.min(Math.abs(value - range[0]), Math.abs(value - range[1])) / Math.max(1, range[1] - range[0]));
+  }
+  function motorScore(m) {
+    let score = rangePenalty(weightG, m.recommendedAllUpWeightG) * 4 + rangePenalty(wingspanMM, m.recommendedWingspanMM) * 2;
+    const hay = ((m.class || '') + ' ' + (m.notes || '')).toLowerCase();
+    if (hay.includes(styleWords)) score -= 0.8;
+    if (isWing && (hay.includes('flying-wing') || hay.includes('fighter') || hay.includes('sport'))) score -= 0.9;
+    if (controlWords.includes('rudder') && hay.includes('trainer')) score -= 0.15;
+    const thrust = m.estimatedStaticThrustG ? mid(m.estimatedStaticThrustG) : 0;
+    const ratio = thrust / Math.max(1, weightG);
+    const desired = ['Fighter','Aerobatic','Sport'].includes(form.style) || isWing ? 1.0 : 0.75;
+    if (ratio < desired) score += (desired - ratio) * 8;
+    return score;
+  }
+  const motorSpec = motorCandidates.slice().sort((a, b) => motorScore(a) - motorScore(b))[0];
+  const batteryCells = Array.isArray(motorSpec.batteryCells) ? motorSpec.batteryCells[0] + (motorSpec.batteryCells.length > 1 ? '–' + motorSpec.batteryCells[motorSpec.batteryCells.length - 1] : '') + 'S' : 'See motor data';
+  const propeller = Array.isArray(motorSpec.propellers) ? motorSpec.propellers[0] : 'See motor data';
 
   // --- CG: clamp into style band ---
   const cgBand = isWing && spec.flyingWingOverrides?.cgPercentMAC ? spec.flyingWingOverrides.cgPercentMAC : spec.cgPercentMAC;
@@ -507,7 +533,7 @@ function parseDesign(text, form, knowledge) {
     fuselageLengthMM, noseLengthMM, fuselageHeightMM,
     hStabSpanMM, hStabChordMM, vStabHeightMM, vStabChordMM,
     cgPercentMAC, weightG,
-    motor: form.motor, servoCount: cc.servoCount, foam: form.foam,
+    motor: motorSpec.label, motorBattery: batteryCells, motorProp: propeller, motorReason: motorSpec.notes || '', servoCount: cc.servoCount, foam: form.foam,
     tailType: cc.tailType, hasRudder: cc.hasRudder,
     wingPanelLimitMM: rules.wingPanelLimitMM
   };
@@ -521,7 +547,8 @@ function parseDesign(text, form, knowledge) {
   if (cc.hasRudder) notes.unshift('Full tail: coordinate rudder with aileron on turns for a scale-like flight feel.');
   if (wingspanMM >= (materialSpec.sparRequiredAboveWingspanMM || Infinity)) notes.unshift(form.foam + ': carbon or wood spar reinforcement is mandatory at this span.');
   const recommendedWeight = motorSpec.recommendedAllUpWeightG || motorSpec.absoluteAllUpWeightG;
-  if (recommendedWeight && (weightG < recommendedWeight[0] || weightG > recommendedWeight[1])) notes.unshift(form.motor + ': calculated AUW is outside the preferred motor range but remains inside its absolute limit; verify propeller, battery, and measured thrust before flight.');
+  notes.unshift(`Recommended power system: ${motorSpec.label}, ${batteryCells} battery, ${propeller} propeller. Verify measured current and thrust with the actual components.`);
+  if (recommendedWeight && (weightG < recommendedWeight[0] || weightG > recommendedWeight[1])) notes.unshift(motorSpec.label + ': calculated AUW is outside the preferred range but inside the absolute limit; verify measured thrust before flight.');
 
   return {
     name: params.name,
@@ -531,6 +558,53 @@ function parseDesign(text, form, knowledge) {
     notes: notes.slice(0, 6),
     params
   };
+}
+
+
+/* ============================================================
+   DESIGN DOSSIER RENDERERS
+   A coherent presentation view inspired by real assembly manuals:
+   exploded components, ready views, specifications, and labels.
+   The physical 1:1 cut sheet remains buildPlanSVG(..., {physical:true}).
+   ============================================================ */
+function buildReadyViewSVG(p, c) {
+  const W = 900, H = 330, cx = W / 2;
+  const scale = Math.min(0.42, 720 / Math.max(1, p.wingspanMM));
+  const half = p.wingspanMM * scale / 2;
+  const root = p.rootChordMM * scale, tip = p.tipChordMM * scale, sweep = p.sweepMM * scale;
+  const y = 70;
+  const wing = [[cx-half,y+sweep],[cx,y],[cx+half,y+sweep],[cx+half,y+sweep+tip],[cx,y+root],[cx-half,y+sweep+tip]];
+  const pts2 = a => a.map(q => q.map(v => Math.round(v*10)/10).join(',')).join(' ');
+  const isWing = p.tailType === 'flyingwing';
+  const fusL = Math.min(190, p.fuselageLengthMM * scale);
+  const fusW = Math.max(18, p.fuselageHeightMM * scale * 0.9);
+  let extra = `<path d="M${cx-fusW/2},${y+8} L${cx+fusW/2},${y+8} L${cx+fusW*.65},${y+fusL*.72} L${cx},${y+fusL} L${cx-fusW*.65},${y+fusL*.72} Z" fill="${c.bg}" stroke="${c.line}" stroke-width="3"/>`;
+  if (isWing) {
+    extra += `<path d="M${cx-half+35},${y+sweep-8} v-${Math.max(28, p.vStabHeightMM*scale)} h16 v${Math.max(28, p.vStabHeightMM*scale)}z M${cx+half-51},${y+sweep-8} v-${Math.max(28, p.vStabHeightMM*scale)} h16 v${Math.max(28, p.vStabHeightMM*scale)}z" fill="${c.accent}" fill-opacity=".3" stroke="${c.line}" stroke-width="2"/>`;
+  } else if (p.hStabSpanMM > 0) {
+    const hs = p.hStabSpanMM*scale/2, hc=p.hStabChordMM*scale, ty=y+fusL-hc;
+    extra += `<path d="M${cx-hs},${ty+hc*.25} L${cx},${ty} L${cx+hs},${ty+hc*.25} L${cx+hs},${ty+hc} L${cx-hs},${ty+hc}Z" fill="${c.bg}" stroke="${c.line}" stroke-width="2"/>`;
+  }
+  const st=computeStats(p), cg=y+st.cgFromRootLE*scale;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" style="display:block"><rect width="${W}" height="${H}" fill="${c.bg}"/><g opacity=".18" stroke="${c.grid}"><path d="M0 55H900M0 110H900M0 165H900M0 220H900M0 275H900M75 0V330M150 0V330M225 0V330M300 0V330M375 0V330M450 0V330M525 0V330M600 0V330M675 0V330M750 0V330M825 0V330"/></g><polygon points="${pts2(wing)}" fill="${c.accent}" fill-opacity=".12" stroke="${c.line}" stroke-width="3"/>${extra}<circle cx="${cx}" cy="${cg}" r="8" fill="none" stroke="${c.accent}" stroke-width="2"/><path d="M${cx-13} ${cg}H${cx+13}M${cx} ${cg-13}V${cg+13}" stroke="${c.accent}" stroke-width="2"/><text x="24" y="35" fill="${c.line}" font-family="${F}" font-size="18" font-weight="600">${esc((p.name||'AIRFRAME').toUpperCase())}</text><text x="876" y="35" text-anchor="end" fill="${c.dim}" font-family="${F}" font-size="13">READY VIEW · ${p.wingspanMM} MM</text></svg>`;
+}
+
+function buildDesignDossierSVG(p, c) {
+  const W=1600,H=1000, isWing=p.tailType==='flyingwing', isV=p.tailType==='vtail', st=computeStats(p);
+  const line=c.line, dim=c.dim, ac=c.accent, bg=c.bg;
+  const txt=(x,y,t,size=18,anchor='start',weight='400',fill=line)=>`<text x="${x}" y="${y}" font-family="${F}" font-size="${size}" text-anchor="${anchor}" font-weight="${weight}" fill="${fill}">${esc(t)}</text>`;
+  const leader=(x1,y1,x2,y2)=>`<path d="M${x1} ${y1} L${x2} ${y2}" stroke="${dim}" stroke-width="1.5" stroke-dasharray="7 6" fill="none"/>`;
+  const wingPanel=(x,y,flip=1)=>{const L=470,rc=145,tc=80,sw=100; const d=flip>0?`M${x} ${y} L${x+L} ${y+sw} L${x+L} ${y+sw+tc} L${x} ${y+rc}Z`:`M${x} ${y} L${x-L} ${y+sw} L${x-L} ${y+sw+tc} L${x} ${y+rc}Z`; return `<path d="${d}" fill="${ac}" fill-opacity=".08" stroke="${line}" stroke-width="3"/><path d="${flip>0?`M${x+35} ${y+92}L${x+L-25} ${y+sw+tc*.45}`:`M${x-35} ${y+92}L${x-L+25} ${y+sw+tc*.45}`}" stroke="${dim}" stroke-width="2" stroke-dasharray="10 7"/>`;};
+  const centerX=1020, centerY=235;
+  let exploded=wingPanel(centerX-70,centerY+40,-1)+wingPanel(centerX+70,centerY+40,1);
+  exploded+=`<path d="M${centerX-75} ${centerY+20} L${centerX+75} ${centerY+20} L${centerX+105} ${centerY+300} L${centerX} ${centerY+360} L${centerX-105} ${centerY+300}Z" fill="${bg}" stroke="${line}" stroke-width="3"/><rect x="${centerX-58}" y="${centerY+92}" width="116" height="72" rx="8" fill="${ac}" fill-opacity=".14" stroke="${line}" stroke-width="2"/>`;
+  if(isWing){exploded+=`<path d="M${centerX-410} ${centerY-80} l75 -50 l22 155 l-88 18Z M${centerX+410} ${centerY-80} l-75 -50 l-22 155 l88 18Z" fill="${ac}" fill-opacity=".16" stroke="${line}" stroke-width="3"/>`;}
+  else {exploded+=`<path d="M${centerX-160} ${centerY+380} L${centerX} ${centerY+330} L${centerX+160} ${centerY+380} L${centerX+145} ${centerY+445} L${centerX-145} ${centerY+445}Z" fill="${ac}" fill-opacity=".1" stroke="${line}" stroke-width="3"/>`; if(!isV) exploded+=`<path d="M${centerX} ${centerY+305} l65 75 h-65Z" fill="${ac}" fill-opacity=".18" stroke="${line}" stroke-width="3"/>`;}
+  exploded+=`<rect x="${centerX-500}" y="${centerY+360}" width="410" height="12" rx="6" fill="${line}" opacity=".7"/><rect x="${centerX+90}" y="${centerY+360}" width="410" height="12" rx="6" fill="${line}" opacity=".7"/>`;
+  const ready=buildReadyViewSVG(p,c).replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');
+  let specs=[['WINGSPAN',p.wingspanMM+' mm'],['LENGTH',p.fuselageLengthMM+' mm'],['FLYING WEIGHT',p.weightG+' g'],['MOTOR',p.motor],['BATTERY',p.motorBattery||'—'],['PROPELLER',p.motorProp||'—'],['SERVOS',p.servoCount+' × 9g'],['CG',p.cgPercentMAC+'% MAC'],['WING LOADING',num(st.wingLoading)+' g/dm²'],['MATERIAL',p.foam]];
+  let specRows=specs.map((r,i)=>txt(48,285+i*34,r[0]+':',16,'start','600',line)+txt(235,285+i*34,r[1],16,'start','400',dim)).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" style="display:block"><rect width="${W}" height="${H}" fill="${bg}"/><rect x="18" y="18" width="1564" height="964" rx="12" fill="none" stroke="${dim}" stroke-width="1" opacity=".7"/>${txt(35,72,(p.name||'AIRFRAME').toUpperCase(),54,'start','700',line)}${txt(38,108,(isWing?'EXPERIMENTAL RC FLYING WING':isV?'RC V-TAIL AIRFRAME':'RC FOAM AIRFRAME')+' · RTFOAM',20,'start','500',dim)}<path d="M35 128H405" stroke="${line}" stroke-width="2"/>${txt(35,170,'A coherent parametric build package with solved stability,',17,'start','400',dim)}${txt(35,196,'recommended power system, assembly geometry, and CG.',17,'start','400',dim)}<rect x="30" y="225" width="380" height="390" rx="10" fill="none" stroke="${dim}" opacity=".7"/>${txt(45,260,'SPECIFICATIONS (RECOMMENDED)',18,'start','700',line)}${specRows}<rect x="430" y="25" width="1145" height="590" rx="10" fill="none" stroke="${dim}" opacity=".7"/><rect x="430" y="25" width="190" height="42" rx="8" fill="${line}"/>${txt(450,54,'EXPLODED VIEW',18,'start','700',bg)}${exploded}${leader(650,150,830,260)}${txt(625,138,'LEFT WING PANEL',16,'start','600',line)}${leader(1390,150,1210,260)}${txt(1410,138,'RIGHT WING PANEL',16,'end','600',line)}${leader(1130,120,1050,250)}${txt(1135,108,'CENTER POD / BATTERY BAY',16,'start','600',line)}${leader(560,520,700,600)}${txt(520,510,'SPAR STRIP',16,'start','600',line)}${leader(1460,520,1340,600)}${txt(1480,510,'SPAR STRIP',16,'end','600',line)}<rect x="30" y="635" width="1545" height="320" rx="10" fill="none" stroke="${dim}" opacity=".7"/><rect x="30" y="635" width="145" height="42" rx="8" fill="${line}"/>${txt(50,664,'READY VIEW',18,'start','700',bg)}<svg x="220" y="660" width="1050" height="270" viewBox="0 0 900 330">${ready}</svg>${txt(45,720,'ASSEMBLY PRIORITIES',18,'start','700',line)}${txt(45,755,'1  Cut mirrored panels accurately.',15,'start','400',dim)}${txt(45,785,'2  Install spars before closing folds.',15,'start','400',dim)}${txt(45,815,'3  Keep battery adjustable around CG.',15,'start','400',dim)}${txt(45,845,'4  Verify control direction and range.',15,'start','400',dim)}${txt(45,875,'5  Glide-test before powered flight.',15,'start','400',dim)}${txt(1545,935,'RTFOAM · BUILD DOSSIER · V8',13,'end','500',dim)}</svg>`;
 }
 
 const THEMES = {
@@ -551,7 +625,7 @@ const THEMES = {
 const PRINT_COLORS = { bg: '#FFFFFF', line: '#1E3A5F', dim: '#5A6B80', accent: '#C25E2E', grid: 'rgba(30,58,95,0.12)' };
 
 window.PlanLib = {
-  computeStats, buildPlanSVG, SEED_DESIGNS, buildPrompt, parseDesign, THEMES, PRINT_COLORS,
-  VERSION: 7
+  computeStats, buildPlanSVG, buildReadyViewSVG, buildDesignDossierSVG, SEED_DESIGNS, buildPrompt, parseDesign, THEMES, PRINT_COLORS,
+  VERSION: 8
 };
 })();

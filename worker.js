@@ -1,5 +1,5 @@
 // ============================================================
-// SLIPSTREAM FOAMWORKS — OPENAI GPT-5.6 PROXY
+// RTFOAM — OPENAI GPT-5.6 PROXY
 // ============================================================
 // Cloudflare Worker that keeps the OpenAI key server-side.
 // Required secret: OPENAI_API_KEY

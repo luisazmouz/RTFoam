@@ -100,5 +100,42 @@
         "Experimental"
       ]
     }
+  },
+  "powerSystemSelection": {
+    "mode": "automatic",
+    "rule": "Solve geometry and all-up weight first, then select the lowest-penalty motor whose absolute weight range contains the aircraft.",
+    "recommendedOutputFields": [
+      "motor label",
+      "battery cells",
+      "propeller",
+      "selection rationale"
+    ],
+    "preferRecommendedEnvelope": true,
+    "verifyMeasuredCurrentAndThrust": true
+  },
+  "presentationRules": {
+    "requiredViews": [
+      "exploded assembly",
+      "ready top view",
+      "ready perspective or front reference"
+    ],
+    "requiredAnnotations": [
+      "wing panels",
+      "center pod or fuselage",
+      "vertical surfaces",
+      "spar paths",
+      "battery bay",
+      "CG",
+      "servo locations"
+    ],
+    "coherenceRule": "Every shown part must correspond to a buildable component and have an obvious assembly relationship.",
+    "flyingWingRequiredComponents": [
+      "mirrored wing panels",
+      "integrated center pod",
+      "two vertical fins or winglets",
+      "two elevons",
+      "continuous spar reinforcement",
+      "motor firewall"
+    ]
   }
 }

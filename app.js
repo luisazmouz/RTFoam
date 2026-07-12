@@ -1,5 +1,5 @@
 /* ============================================================
-   SLIPSTREAM FOAMWORKS — app behavior
+   RTFOAM — app behavior
    State + event handlers. All form/detail/report markup is real
    static HTML in index.html — this file wires it up, plus renders
    the genuinely data-driven lists (hangar cards, flight-data rows,
@@ -14,7 +14,7 @@
    ============================================================ */
 
 const Lib = window.PlanLib;
-const APP_VERSION = 7; // must match PlanLib.VERSION — mismatch means stale files on the server
+const APP_VERSION = 8; // must match PlanLib.VERSION — mismatch means stale files on the server
 const LS_DESIGNS = 'slipstream_designs_v1';
 const LS_LOGS = 'slipstream_flightlog_v1';
 
@@ -39,10 +39,8 @@ const state = {
   form: {
     style: 'Trainer',
     wingspan: 900,
-    motor: '',        // populated once motors.json loads
     controlConfig: 'Ailerons + Elevator',
     foam: '',         // populated once materials.json loads
-    notes: ''
   },
   flightLogs: {},          // designId -> {verdict, note, ts}
   report: { verdict: '', note: '' },
@@ -113,6 +111,7 @@ async function bootKnowledge() {
     const k = await loadKnowledgeFiles();
     state.knowledgeStatus = { loaded: true, files: k.fileList, totalChars: k.totalChars, error: null };
     state._noveltyRules = k.parsed.novelty;
+    state._knowledge = k.parsed;
     populateFormFromKnowledge(k.parsed);
   } catch (e) {
     state.knowledgeStatus = { loaded: false, files: [], totalChars: 0, error: (e && e.message) || String(e) };
@@ -134,13 +133,7 @@ function populateFormFromKnowledge(parsed) {
   ccBox.innerHTML = ccNames.map(cName =>
     `<button data-cc="${h(cName)}" onclick="onControlConfigChange('${cName.replace(/'/g, "\\'")}')">${h(cName.toUpperCase())}</button>`).join('');
   if (!ccNames.includes(state.form.controlConfig)) state.form.controlConfig = ccNames[0] || '';
-
-  // motors
-  const motors = parsed.motors || [];
-  const motorBox = document.getElementById('motor-buttons');
-  motorBox.innerHTML = motors.map(m =>
-    `<button data-motor="${h(m.label)}" onclick="onMotorChange('${m.label.replace(/'/g, "\\'")}')">${h(m.label)}</button>`).join('');
-  if (!state.form.motor && motors.length) state.form.motor = motors[0].label;
+  state._controlConfigurations = (parsed.designRules && parsed.designRules.controlConfigurations) || {};
 
   // materials
   const materials = parsed.materials || [];
@@ -335,12 +328,13 @@ function duplicateFeedback(match) {
 }
 
 const GEN_LINES = [
-  '> SIZING WING PLANFORM…',
-  '> CHECKING WING LOADING ENVELOPE…',
-  '> SOLVING TAIL VOLUME + MOMENT ARM…',
-  '> PLACING CENTER OF GRAVITY…',
-  '> ROUTING SPAR + HINGE LINES…',
-  '> DRAFTING CUT SHEET…',
+  '> SOLVING PLANFORM + TAPER…',
+  '> ESTIMATING ALL-UP WEIGHT…',
+  '> SELECTING MOTOR / PROP SYSTEM…',
+  '> SOLVING STABILITY VOLUMES…',
+  '> POSITIONING BATTERY + CG RANGE…',
+  '> LAYING OUT SPARS, SERVOS + HINGES…',
+  '> ASSEMBLING EXPLODED BUILD DOSSIER…',
 ];
 let logTimer = null;
 
@@ -354,6 +348,7 @@ async function onGenerate() {
     knowledge = await loadKnowledgeFiles();
     state.knowledgeStatus = { loaded: true, files: knowledge.fileList, totalChars: knowledge.totalChars, error: null };
     state._noveltyRules = knowledge.parsed.novelty;
+    state._knowledge = knowledge.parsed;
   } catch (e) {
     state.knowledgeStatus = { loaded: false, files: [], totalChars: 0, error: (e && e.message) || String(e) };
     renderKnowledgeDebug();
@@ -367,7 +362,7 @@ async function onGenerate() {
   const memory = buildMemory();
   state.generating = true;
   state.error = null;
-  state.log = ['> PARAMETERS RECEIVED', `> CALIBRATION: ${memory.length} FLIGHT REPORT${memory.length === 1 ? '' : 'S'} LOADED`];
+  state.log = ['> MISSION ENVELOPE LOCKED', '> CHECKING CONTROL-LAYOUT COMPATIBILITY', `> CALIBRATION: ${memory.length} FLIGHT REPORT${memory.length === 1 ? '' : 'S'} LOADED`];
   renderConsole();
   setGenerateButtonBusy(true);
   let i = 0;
@@ -395,7 +390,7 @@ async function onGenerate() {
       noveltyFeedback = duplicateFeedback(duplicate);
       parsed = null;
       if (attempt === maxAttempts) {
-        throw new Error('The model produced a near-duplicate after three attempts. Closest existing aircraft: ' + duplicate.existing.name + '. Adjust the mission parameters or pilot notes to request a more distinct design.');
+        throw new Error('The model produced a near-duplicate after three attempts. Closest existing aircraft: ' + duplicate.existing.name + '. Change the style, control configuration, material, or wingspan to request a more distinct design.');
       }
     }
     // sanity assertion: the generated tail must match the requested control configuration
@@ -430,7 +425,7 @@ async function onGenerate() {
 function setGenerateButtonBusy(busy) {
   const btn = document.getElementById('btn-generate');
   btn.disabled = busy;
-  btn.textContent = busy ? 'COMPUTING…' : '⚙ GENERATE AIRFRAME';
+  btn.textContent = busy ? 'ENGINEERING AIRFRAME…' : 'GENERATE AIRFRAME';
 }
 
 /* ============================================================
@@ -464,11 +459,22 @@ const active = () => state.designs.find(d => d.id === state.activeId) || null;
 /* ============================================================
    FORM EVENT HANDLERS
    ============================================================ */
-function onStyleChange(v) { state.form.style = v; syncFormButtons(); }
-function onMotorChange(v) { state.form.motor = v; syncFormButtons(); }
+function controlAllowedForStyle(controlName, styleName) {
+  const cc = (state._controlConfigurations || {})[controlName];
+  return !cc || !Array.isArray(cc.allowedStyles) || cc.allowedStyles.includes(styleName);
+}
+function selectFirstCompatibleControl() {
+  if (controlAllowedForStyle(state.form.controlConfig, state.form.style)) return;
+  const next = Object.keys(state._controlConfigurations || {}).find(name => controlAllowedForStyle(name, state.form.style));
+  if (next) state.form.controlConfig = next;
+}
+function onStyleChange(v) { state.form.style = v; selectFirstCompatibleControl(); syncFormButtons(); }
 function onFoamChange(v) { state.form.foam = v; syncFormButtons(); }
-function onControlConfigChange(v) { state.form.controlConfig = v; syncFormButtons(); }
-function onNotesChange(v) { state.form.notes = v; }
+function onControlConfigChange(v) {
+  if (!controlAllowedForStyle(v, state.form.style)) return;
+  state.form.controlConfig = v;
+  syncFormButtons();
+}
 function onWingspanChange(v) {
   state.form.wingspan = Number(v);
   document.getElementById('out-span').textContent = v + ' MM';
@@ -482,12 +488,15 @@ function onWingspanChange(v) {
 function syncFormButtons() {
   const f = state.form;
   for (const btn of document.querySelectorAll('#style-buttons button')) btn.classList.toggle('on', btn.dataset.style === f.style);
-  for (const btn of document.querySelectorAll('#motor-buttons button')) btn.classList.toggle('on', btn.dataset.motor === f.motor);
   for (const btn of document.querySelectorAll('#foam-buttons button')) btn.classList.toggle('on', btn.dataset.foam === f.foam);
-  for (const btn of document.querySelectorAll('#control-config-buttons button')) btn.classList.toggle('on', btn.dataset.cc === f.controlConfig);
+  for (const btn of document.querySelectorAll('#control-config-buttons button')) {
+    const allowed = controlAllowedForStyle(btn.dataset.cc, f.style);
+    btn.disabled = !allowed;
+    btn.classList.toggle('unavailable', !allowed);
+    btn.classList.toggle('on', allowed && btn.dataset.cc === f.controlConfig);
+  }
   document.getElementById('wingspan-slider').value = f.wingspan;
   document.getElementById('out-span').textContent = f.wingspan + ' MM';
-  document.getElementById('form-notes').value = f.notes;
   onWingspanChange(f.wingspan);
 }
 
@@ -571,33 +580,37 @@ function onImportHangar(input) {
 /* ============================================================
    GENERATION STAGE — morphing blueprint aircraft
    ============================================================ */
-function planeParts(cls, stroke, dash, fill) {
-  return `
-  <g class="${cls}" stroke="${stroke}" stroke-width="1.6" ${dash ? 'stroke-dasharray="4 3"' : ''} fill="${fill || 'none'}" fill-opacity="0" stroke-linejoin="round">
-    <g class="pt-wing"><polygon points="38,66 100,52 162,66 162,80 100,72 38,80"/></g>
-    <g class="pt-fus"><polygon points="96,20 104,20 106,118 94,118"/></g>
-    <g class="pt-stab"><polygon points="78,106 122,106 118,120 82,120"/></g>
-    <g class="pt-fin"><rect x="98.5" y="100" width="3" height="18"/></g>
-  </g>`;
-}
 function genStage() {
+  const flyingWing = state.form.controlConfig === 'Elevons only';
+  const vTail = state.form.controlConfig === 'V-tail';
+  const spanLabel = state.form.wingspan + ' MM';
+  const tail = flyingWing ? '' : vTail
+    ? '<path class="draft-line phase-3" d="M100 112 L78 124 L100 116 L122 124 Z"/>'
+    : '<path class="draft-line phase-3" d="M74 116 L100 108 L126 116 L124 126 L76 126 Z"/><path class="draft-line phase-3" d="M100 103 L108 126 L100 126 Z"/>';
+  const pod = flyingWing
+    ? '<path class="draft-line phase-2" d="M92 40 L108 40 L114 112 L100 124 L86 112 Z"/>'
+    : '<path class="draft-line phase-2" d="M94 24 L106 24 L110 122 L100 132 L90 122 Z"/>';
   return `
-  <div class="gen-stage">
-    <svg viewBox="0 0 200 145" xmlns="http://www.w3.org/2000/svg">
-      <circle class="gen-ring" cx="100" cy="72" r="60" fill="none" stroke="var(--stroke)" stroke-width="1" stroke-dasharray="3 6"/>
-      ${planeParts('plane-wire', 'var(--dim)', true)}
-      ${planeParts('plane-solid', 'var(--ink)', false, 'var(--accent)')}
-      <g class="plan-marks">
-        <circle cx="100" cy="66" r="5" fill="none" stroke="var(--accent)" stroke-width="1.4"/>
-        <line x1="92" y1="66" x2="108" y2="66" stroke="var(--accent)" stroke-width="1.4"/>
-        <line x1="100" y1="58" x2="100" y2="74" stroke="var(--accent)" stroke-width="1.4"/>
-        <line x1="38" y1="132" x2="162" y2="132" stroke="var(--dim)" stroke-width="1"/>
-        <line x1="38" y1="128" x2="38" y2="136" stroke="var(--dim)" stroke-width="1"/>
-        <line x1="162" y1="128" x2="162" y2="136" stroke="var(--dim)" stroke-width="1"/>
+  <div class="design-solver">
+    <div class="solver-head"><span>LIVE GEOMETRY SOLVER</span><span class="solver-span">${spanLabel}</span></div>
+    <svg class="solver-svg" viewBox="0 0 200 150" xmlns="http://www.w3.org/2000/svg" aria-label="Airframe being drafted">
+      <g class="solver-grid"><path d="M20 20H180M20 45H180M20 70H180M20 95H180M20 120H180M40 10V140M70 10V140M100 10V140M130 10V140M160 10V140"/></g>
+      <g fill="none" stroke="currentColor" stroke-linejoin="round">
+        <path class="draft-line phase-1" d="M20 72 L100 42 L180 72 L172 104 L100 88 L28 104 Z"/>
+        <path class="draft-line phase-2" d="M30 95 L78 84 M122 84 L170 95" stroke-dasharray="3 3"/>
+        ${pod}${tail}
+        <path class="draft-line phase-4 cg-ring" d="M94 76 A6 6 0 1 0 106 76 A6 6 0 1 0 94 76 M90 76H110M100 66V86"/>
+        <path class="draft-line phase-4 dimension" d="M20 134H180M20 130V138M180 130V138"/>
       </g>
+      <g class="solver-labels">
+        <text x="100" y="146" text-anchor="middle">WINGSPAN ${spanLabel}</text>
+        <text x="25" y="65">WING PANEL A</text><text x="175" y="65" text-anchor="end">WING PANEL B</text>
+        <text x="108" y="74">CG</text>
+      </g>
+      <g class="solver-nodes"><circle cx="20" cy="72" r="2"/><circle cx="100" cy="42" r="2"/><circle cx="180" cy="72" r="2"/><circle cx="100" cy="88" r="2"/></g>
     </svg>
-    <div class="scanbeam"></div>
-    <div class="gen-status">DESIGNING AIRFRAME<span class="dots"><span>.</span><span>.</span><span>.</span></span></div>
+    <div class="solver-progress"><span></span></div>
+    <div class="solver-caption">PARAMETRIC PLANFORM IS BEING SOLVED AGAINST THE KNOWLEDGE BASE AND EXISTING HANGAR</div>
   </div>`;
 }
 const DOTS = '<span class="dots"><span>.</span><span>.</span><span>.</span></span>';
@@ -615,12 +628,12 @@ function renderConsole() {
   body.innerHTML = busy
     ? (state.generating ? genStage() : '') + `<div id="gen-log">${logLinesHtml()}</div>`
     : `<div class="line hot">&gt; STANDING BY FOR PARAMETERS…</div>
-       <div class="line">&nbsp;&nbsp;MODEL WILL SOLVE FOR:</div>
+       <div class="line">&nbsp;&nbsp;ENGINEERING PIPELINE:</div>
        <div class="line">&nbsp;&nbsp;· WING LOADING ENVELOPE (G/DM²)</div>
        <div class="line">&nbsp;&nbsp;· CG PLACEMENT PER STYLE BAND</div>
        <div class="line">&nbsp;&nbsp;· TAIL VOLUME + MOMENT ARM</div>
        <div class="line">&nbsp;&nbsp;· SPAR, HINGE + SERVO BAY LAYOUT</div>
-       <div class="line">&nbsp;&nbsp;OUTPUT: 1:1 SVG CUT SHEET</div>`;
+       <div class="line">&nbsp;&nbsp;OUTPUT: BUILD DOSSIER + 1:1 SVG CUT SHEET</div>`;
   const err = document.getElementById('gen-error');
   err.hidden = !state.error;
   err.textContent = state.error ? 'ERR // ' + state.error : '';
@@ -640,7 +653,7 @@ function renderCards() {
       + (log && log.verdict ? ' · ' + log.verdict : '') + (d.userMade ? ' · YOURS' : '');
     return `
     <div class="card" style="animation-delay:${Math.min(i * 60, 480)}ms" onclick="openDesign('${h(d.id)}')">
-      <div class="preview">${Lib.buildPlanSVG(d.params, theme)}</div>
+      <div class="preview">${Lib.buildReadyViewSVG(d.params, theme)}</div>
       <div class="body">
         <div class="title-row"><span class="name">${h(d.name)}</span><span class="tag">${h(d.styleTag)}</span></div>
         <span class="meta">${h(meta)}</span>
@@ -660,7 +673,7 @@ function renderDetail() {
   document.getElementById('detail-tag').textContent = d.styleTag + (d.controlConfigTag ? ' · ' + d.controlConfigTag.toUpperCase() : '');
   document.getElementById('detail-desc').textContent = d.description;
 
-  document.getElementById('detail-plan').innerHTML = Lib.buildPlanSVG(d.params, theme);
+  document.getElementById('detail-plan').innerHTML = Lib.buildDesignDossierSVG(d.params, theme);
 
   const rows = [
     ['WINGSPAN', d.params.wingspanMM + ' mm'],
@@ -672,6 +685,8 @@ function renderDetail() {
     ['CG', Math.round(st.cgFromRootLE) + ' mm aft LE · ' + d.params.cgPercentMAC + '%'],
     ['TAIL VOLUME', st.tailVolume ? r1(st.tailVolume) : '—'],
     ['MOTOR', d.params.motor],
+    ['BATTERY', d.params.motorBattery || 'See motor guidance'],
+    ['PROPELLER', d.params.motorProp || 'See motor guidance'],
     ['SERVOS', d.params.servoCount + '×'],
     ['MATERIAL', d.params.foam],
   ].map(([k, v]) => `<div class="stat-row"><span class="k">${h(k)}</span><span class="v">${h(String(v))}</span></div>`).join('');

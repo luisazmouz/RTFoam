@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slipstream Foamworks — AI-drafted foam-board aircraft</title>
+<title>RTFOAM — engineered foam-board aircraft</title>
 
 <!-- ============================================================
-     SLIPSTREAM FOAMWORKS — public site
+     RTFOAM — public site
      Plain HTML + CSS + vanilla JS. Edit freely.
 
      FILES
@@ -44,16 +44,16 @@ const CONFIG = {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=7">
-<script src="plan-lib.js?v=7"></script>
+<link rel="stylesheet" href="styles.css?v=8">
+<script src="plan-lib.js?v=8"></script>
 </head>
 <body>
 
 <header>
   <div class="logo" onclick="go('home')">
     <span class="mark"></span>
-    <span class="name">SLIPSTREAM</span>
-    <span class="sub">FOAMWORKS</span>
+    <span class="name">RTFOAM</span>
+    <span class="sub">AIRFRAME LAB</span>
   </div>
   <nav>
     <button class="btn-ghost" onclick="go('home')">HANGAR</button>
@@ -66,9 +66,9 @@ const CONFIG = {
   <!-- ============ HOME / HANGAR ============ -->
   <section id="view-home" class="view">
     <section class="hero">
-      <div class="kicker rise rise-1">AERO-TRAINED MODEL // PARAMETRIC FOAM-BOARD AIRFRAMES</div>
-      <h1 class="rise rise-2">Describe the mission.<br>Download the airframe.</h1>
-      <p class="rise rise-3">Slipstream sizes real, flyable foam-board aircraft — wing loading, tail volume, and center of gravity computed from real design equations — then drafts a full-size SVG cut sheet ready to print, cut, and fly.</p>
+      <div class="kicker rise rise-1">ENGINEERING MODEL // PARAMETRIC FOAM-BOARD AIRFRAMES</div>
+      <h1 class="rise rise-2">Choose the airframe.<br>Build from the dossier.</h1>
+      <p class="rise rise-3">RTFOAM engineers real, flyable foam-board aircraft — wing loading, tail volume, and center of gravity computed from real design equations — then drafts a full-size SVG cut sheet ready to print, cut, and fly.</p>
       <div class="hero-cta rise rise-4">
         <button class="btn-solid" onclick="go('new')">+ NEW DESIGN</button>
         <span class="label">SVG · PDF · 1:1 SCALE · CG MARKED</span>
@@ -115,17 +115,6 @@ const CONFIG = {
         </div>
 
         <div class="field">
-          <span class="label">MOTOR</span>
-          <div class="seg" id="motor-buttons">
-            <button data-motor="1806 · 2280KV" onclick="onMotorChange('1806 · 2280KV')">1806 · 2280KV</button>
-            <button data-motor="2205 · 2300KV" onclick="onMotorChange('2205 · 2300KV')">2205 · 2300KV</button>
-            <button data-motor="2212 · 1000KV" onclick="onMotorChange('2212 · 1000KV')">2212 · 1000KV</button>
-            <button data-motor="2212 · 1400KV" onclick="onMotorChange('2212 · 1400KV')">2212 · 1400KV</button>
-            <button data-motor="2814 · 900KV" onclick="onMotorChange('2814 · 900KV')">2814 · 900KV</button>
-          </div>
-        </div>
-
-        <div class="field">
           <span class="label">CONTROL CONFIGURATION</span>
           <div class="seg" id="control-config-buttons" style="display:grid; grid-template-columns:1fr 1fr;">
             <button data-cc="Ailerons + Elevator" onclick="onControlConfigChange('Ailerons + Elevator')">AILERONS + ELEVATOR</button>
@@ -143,18 +132,13 @@ const CONFIG = {
           </div>
         </div>
 
-        <div class="field">
-          <span class="label">PILOT NOTES — OPTIONAL</span>
-          <input type="text" id="form-notes" oninput="onNotesChange(this.value)" placeholder="e.g. FPV camera up front, needs to hand-launch, gusty field…">
-        </div>
-
-        <button class="btn-solid" id="btn-generate" style="padding:18px; font-size:14px;" onclick="onGenerate()">⚙ GENERATE AIRFRAME</button>
+        <button class="btn-solid" id="btn-generate" style="padding:18px; font-size:14px;" onclick="onGenerate()">GENERATE AIRFRAME</button>
       </div>
 
       <div class="panel console">
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:18px;">
           <span style="width:8px; height:8px; border-radius:50%; background:var(--accent); animation:blink 1.6s infinite;"></span>
-          <span class="label" style="letter-spacing:3px;">FLIGHT COMPUTER</span>
+          <span class="label" style="letter-spacing:3px;">AIRFRAME SOLVER</span>
         </div>
         <div style="display:flex; flex-direction:column; gap:9px; min-height:220px;" id="console-body"></div>
         <div class="err" id="gen-error" hidden></div>
@@ -208,10 +192,10 @@ const CONFIG = {
 </main>
 
 <footer>
-  <span>SLIPSTREAM FOAMWORKS — AI-DRAFTED FOAM-BOARD AIRCRAFT</span>
-  <span>ALWAYS VERIFY CG BEFORE THE MAIDEN</span>
+  <span>RTFOAM — PARAMETRIC FOAM-BOARD AIRFRAMES</span>
+  <span>V8 · ALWAYS VERIFY CG BEFORE THE MAIDEN</span>
 </footer>
 
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

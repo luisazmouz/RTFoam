@@ -40,3 +40,12 @@ Each style in aircraft-types.json contains mission, preferred bands, hard style 
 ## Output discipline
 
 Return one complete internally consistent aircraft. Notes must state required reinforcement, motor/material caveats, CG sensitivity, and maiden-flight precautions specific to the proposed geometry.
+
+## RTFOAM V8 output and power-system rules
+
+- The pilot does not select a motor. First solve the airframe geometry and all-up weight, then recommend the safest compatible motor from `motors.json`.
+- The recommendation must include motor label, battery cell count, and a conservative propeller from that motor's catalog entry.
+- Control configuration must be compatible with the selected style. Never force a conventional style into a tailless layout merely to create novelty.
+- A flying wing must read as one coherent aircraft: mirrored wing panels, a center pod or battery bay integrated into the root region, two vertical fins or winglets, elevons, continuous spar paths, and an accessible motor/firewall arrangement.
+- Avoid disconnected decorative geometry. Every rendered component must have a clear assembly relationship and structural purpose.
+- The final presentation should support an exploded assembly view, a ready/assembled view, specifications, CG, motor recommendation, spar locations, servo locations, and concise assembly priorities.
