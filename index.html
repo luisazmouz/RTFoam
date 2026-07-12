@@ -44,8 +44,8 @@ const CONFIG = {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=9">
-<script src="plan-lib.js?v=9"></script>
+<link rel="stylesheet" href="styles.css?v=11">
+<script src="plan-lib.js?v=11"></script>
 </head>
 <body>
 
@@ -163,7 +163,7 @@ const CONFIG = {
         </div>
         <div style="display:flex; flex-direction:column; gap:10px;">
           <button class="btn-solid" style="padding:15px;" onclick="onDownloadSvg()">DOWNLOAD 1:1 SVG</button>
-          <button class="btn-ghost" style="padding:15px; font-size:13px;" onclick="onPrintPdf()">PRINT / SAVE DOSSIER PDF</button>
+          <button class="btn-ghost" style="padding:15px; font-size:13px;" onclick="onPrintPdf()">PRINT / SAVE DOSSIER PDF</button><button class="btn-ghost" id="btn-regenerate-visual" style="padding:15px; font-size:11px;" onclick="onRegenerateVisuals()">RENDER / REBUILD AI DOSSIER</button>
           <button class="btn-ghost" id="btn-delete" style="font-size:11px; padding:12px; border-color:rgba(232,106,94,0.5); color:var(--danger);" onclick="onDeleteDesign()" hidden>DELETE FROM HANGAR</button>
           <span class="label" style="font-size:10.5px; letter-spacing:1px; line-height:1.6;">SVG IS DRAWN AT TRUE SCALE (MM). PRINT AT 100% — POSTER/TILE MODE FOR LARGE PARTS.</span>
         </div>
@@ -192,9 +192,9 @@ const CONFIG = {
 
 <footer>
   <span>RTFOAM — BUILDABLE FOAM AIRCRAFT</span>
-  <span>V9 · ALWAYS VERIFY CG BEFORE THE MAIDEN</span>
+  <span>V11 · ALWAYS VERIFY CG BEFORE THE MAIDEN</span>
 </footer>
 
-<script src="app.js?v=9"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>

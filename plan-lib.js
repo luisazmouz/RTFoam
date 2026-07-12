@@ -512,7 +512,7 @@ function parseDesign(text, form, knowledge) {
     motor: motorSpec.label, motorBattery: batteryCells, motorProp: propeller, motorReason: motorSpec.notes || '', servoCount: cc.servoCount, foam: form.foam,
     tailType: cc.tailType, hasRudder: cc.hasRudder,
     wingPanelLimitMM: rules.wingPanelLimitMM,
-    architecture: form.style === 'Trainer' ? 'trainer-high-wing' : form.style === 'Warbird' ? 'warbird-elliptical' : form.style === 'Fighter' ? (cc.tailType === 'flyingwing' ? 'fighter-delta' : 'fighter-swept') : 'experimental-flying-wing'
+    designStyle: form.style, architecture: form.style === 'Trainer' ? 'trainer-high-wing' : form.style === 'Warbird' ? 'warbird-low-wing' : form.style === 'Fighter' ? (cc.tailType === 'flyingwing' ? 'fighter-delta' : 'fighter-swept-tail') : 'experimental-flying-wing'
   };
 
   const notes = Array.isArray(j.notes) ? j.notes.map(n => String(n)).slice(0, 6) : [];
@@ -533,6 +533,9 @@ function parseDesign(text, form, knowledge) {
     controlConfigTag: form.controlConfig,
     description: String(j.description || '').slice(0, 220),
     notes: notes.slice(0, 6),
+    architectureVariant: String(j.architectureVariant || params.architecture),
+    construction: j.construction || null,
+    visualBrief: j.visualBrief || null,
     params
   };
 }
@@ -586,69 +589,146 @@ function buildDesignDossierSVG(p, c) {
 
 
 /* ============================================================
-   V9 ARCHITECTURE RENDERER
-   Four deterministic aircraft families with distinct geometry.
+   V10 ARCHITECTURE RENDERER
+   Dedicated geometry and assembly drawings for four aircraft families.
    ============================================================ */
+function styleOf(p){
+  const s=String(p.designStyle||p.styleTag||'').toLowerCase();
+  if(s.includes('warbird')) return 'warbird';
+  if(s.includes('fighter')) return 'fighter';
+  if(s.includes('experimental')) return 'experimental';
+  if(s.includes('trainer')) return 'trainer';
+  const a=String(p.architecture||'').toLowerCase();
+  if(a.includes('warbird')) return 'warbird';
+  if(a.includes('fighter')) return 'fighter';
+  if(a.includes('experimental')||a.includes('flying-wing')) return 'experimental';
+  return 'trainer';
+}
 function architectureOf(p){
-  if(p.architecture) return p.architecture;
-  if(p.tailType==='flyingwing') return p.sweepMM>180?'fighter-delta':'experimental-flying-wing';
-  const n=(p.name||'').toLowerCase();
-  if(n.includes('mustang')||n.includes('warbird')) return 'warbird-elliptical';
+  const s=styleOf(p);
+  if(s==='warbird') return 'warbird-low-wing';
+  if(s==='fighter') return p.tailType==='flyingwing'?'fighter-delta':'fighter-swept-tail';
+  if(s==='experimental') return 'experimental-flying-wing';
   return 'trainer-high-wing';
 }
 function svgText(x,y,t,size,fill,anchor,weight){return `<text x="${num(x)}" y="${num(y)}" font-family="${F}" font-size="${size||14}" fill="${fill}" text-anchor="${anchor||'start'}" font-weight="${weight||400}">${esc(t)}</text>`}
-function archTopGeometry(p,W,H){
-  const a=architectureOf(p), cx=W/2, cy=H*.40, span=Math.min(W*.78,p.wingspanMM*.62), half=span/2;
-  const root=Math.min(H*.42,p.rootChordMM*.55), tip=Math.max(36,p.tipChordMM*.48), sweep=Math.min(root*.82,p.sweepMM*.48);
-  let wing='';
-  if(a==='trainer-high-wing'){
-    const r=18; wing=`M ${cx-half+r} ${cy+sweep} Q ${cx-half} ${cy+sweep} ${cx-half} ${cy+sweep+r} L ${cx-half} ${cy+sweep+tip-r} Q ${cx-half} ${cy+sweep+tip} ${cx-half+r} ${cy+sweep+tip} L ${cx-root*.12} ${cy+root} L ${cx+root*.12} ${cy+root} L ${cx+half-r} ${cy+sweep+tip} Q ${cx+half} ${cy+sweep+tip} ${cx+half} ${cy+sweep+tip-r} L ${cx+half} ${cy+sweep+r} Q ${cx+half} ${cy+sweep} ${cx+half-r} ${cy+sweep} L ${cx+root*.10} ${cy} L ${cx-root*.10} ${cy} Z`;
-  } else if(a==='warbird-elliptical'){
-    wing=`M ${cx} ${cy} C ${cx-half*.35} ${cy+sweep*.15}, ${cx-half*.78} ${cy+sweep*.55}, ${cx-half} ${cy+sweep+tip*.45} C ${cx-half*.95} ${cy+sweep+tip}, ${cx-half*.45} ${cy+root*.98}, ${cx} ${cy+root} C ${cx+half*.45} ${cy+root*.98}, ${cx+half*.95} ${cy+sweep+tip}, ${cx+half} ${cy+sweep+tip*.45} C ${cx+half*.78} ${cy+sweep*.55}, ${cx+half*.35} ${cy+sweep*.15}, ${cx} ${cy} Z`;
-  } else if(a==='fighter-delta'){
-    wing=`M ${cx} ${cy} L ${cx-half} ${cy+sweep+tip*.15} L ${cx-half*.82} ${cy+sweep+tip} L ${cx} ${cy+root} L ${cx+half*.82} ${cy+sweep+tip} L ${cx+half} ${cy+sweep+tip*.15} Z`;
-  } else {
-    wing=`M ${cx} ${cy} L ${cx-half} ${cy+sweep} Q ${cx-half*1.02} ${cy+sweep+tip*.55} ${cx-half*.88} ${cy+sweep+tip} L ${cx} ${cy+root} L ${cx+half*.88} ${cy+sweep+tip} Q ${cx+half*1.02} ${cy+sweep+tip*.55} ${cx+half} ${cy+sweep} Z`;
+function pathEl(d,fill,stroke,w=2,extra=''){return `<path d="${d}" fill="${fill}" stroke="${stroke}" stroke-width="${w}" stroke-linejoin="round" ${extra}/>`}
+function buildPlanSVG(p,c,opts){
+  opts=opts||{};
+  const style=styleOf(p), M=55, gap=45, half=p.wingspanMM/2, root=p.rootChordMM, tip=p.tipChordMM, sweep=p.sweepMM;
+  const wingH=Math.max(root,sweep+tip), wingW=p.wingspanMM+gap;
+  const row2Y=M+wingH+95, tailW=Math.max(p.hStabSpanMM||0,p.vStabChordMM||0)+gap;
+  const W=Math.max(wingW+2*M,p.fuselageLengthMM+tailW+3*M,900);
+  const H=row2Y+Math.max(p.fuselageHeightMM+90,p.hStabChordMM+90,p.vStabHeightMM+90)+150;
+  const line=c.line, dim=c.dim, ac=c.accent, bg=c.bg;
+  const panelPath=(x,y,mirror)=>{
+    const rootX=mirror?x:x+half, tipX=mirror?x+half:x;
+    if(style==='warbird'){
+      const sx=mirror?1:-1;
+      return `M${rootX} ${y} C${rootX+sx*half*.30} ${y+sweep*.02} ${rootX+sx*half*.72} ${y+sweep*.22} ${tipX} ${y+sweep+tip*.35} C${tipX-sx*half*.02} ${y+sweep+tip*.72} ${rootX+sx*half*.68} ${y+sweep+tip} ${rootX+sx*half*.48} ${y+sweep+tip*.94} L${rootX} ${y+root} Z`;
+    }
+    if(style==='fighter') return `M${rootX} ${y} L${tipX} ${y+sweep} L${tipX+(mirror?-half*.14:half*.14)} ${y+sweep+tip} L${rootX} ${y+root} Z`;
+    if(style==='experimental') return `M${rootX} ${y} L${tipX} ${y+sweep} Q${tipX+(mirror?10:-10)} ${y+sweep+tip*.55} ${tipX+(mirror?-half*.14:half*.14)} ${y+sweep+tip} L${rootX} ${y+root} Z`;
+    const rr=Math.min(24,tip*.25); return `M${rootX} ${y} L${tipX+(mirror?-rr:rr)} ${y+sweep} Q${tipX} ${y+sweep} ${tipX} ${y+sweep+rr} L${tipX} ${y+sweep+tip-rr} Q${tipX} ${y+sweep+tip} ${tipX+(mirror?-rr:rr)} ${y+sweep+tip} L${rootX} ${y+root} Z`;
+  };
+  const left=panelPath(M,M,false), right=panelPath(M+half+gap,M,true);
+  const sparY=M+root*.30, hingeY=M+root*.75;
+  const fusX=M, fusY=row2Y, L=p.fuselageLengthMM, fh=p.fuselageHeightMM, nose=p.noseLengthMM;
+  let fus=`M${fusX} ${fusY+fh*.55} Q${fusX+nose*.35} ${fusY} ${fusX+nose} ${fusY} L${fusX+L} ${fusY+fh*.42} L${fusX+L} ${fusY+fh*.82} L${fusX+nose*.35} ${fusY+fh} Z`;
+  if(style==='fighter') fus=`M${fusX} ${fusY+fh*.50} L${fusX+nose} ${fusY} L${fusX+L} ${fusY+fh*.38} L${fusX+L} ${fusY+fh*.72} L${fusX+nose} ${fusY+fh} Z`;
+  if(style==='warbird') fus=`M${fusX} ${fusY+fh*.55} C${fusX+nose*.25} ${fusY} ${fusX+nose*.85} ${fusY} ${fusX+nose} ${fusY+fh*.08} C${fusX+L*.45} ${fusY+fh*.08} ${fusX+L*.72} ${fusY+fh*.20} ${fusX+L} ${fusY+fh*.42} L${fusX+L} ${fusY+fh*.75} C${fusX+L*.62} ${fusY+fh*.78} ${fusX+L*.28} ${fusY+fh} ${fusX+nose*.2} ${fusY+fh} Z`;
+  const tailX=fusX+L+gap, hspan=p.hStabSpanMM||0, hc=p.hStabChordMM||0;
+  let htail=''; if(hspan>0){
+    if(style==='warbird') htail=`M${tailX} ${fusY+hc*.45} C${tailX+hspan*.20} ${fusY} ${tailX+hspan*.40} ${fusY} ${tailX+hspan*.50} ${fusY+hc*.08} C${tailX+hspan*.60} ${fusY} ${tailX+hspan*.80} ${fusY} ${tailX+hspan} ${fusY+hc*.45} C${tailX+hspan*.78} ${fusY+hc} ${tailX+hspan*.22} ${fusY+hc} ${tailX} ${fusY+hc*.45} Z`;
+    else htail=`M${tailX} ${fusY+hc*.20} L${tailX+hspan*.50} ${fusY} L${tailX+hspan} ${fusY+hc*.20} L${tailX+hspan*.88} ${fusY+hc} L${tailX+hspan*.12} ${fusY+hc} Z`;
   }
-  const fusL=Math.min(H*.62,p.fuselageLengthMM*.38), fusW=Math.max(25,p.fuselageHeightMM*.34), noseY=cy-root*.18;
-  let fus=`M ${cx} ${noseY-fusL*.18} Q ${cx+fusW*.55} ${noseY-fusL*.08} ${cx+fusW*.52} ${noseY+fusL*.35} L ${cx+fusW*.28} ${noseY+fusL} L ${cx-fusW*.28} ${noseY+fusL} L ${cx-fusW*.52} ${noseY+fusL*.35} Q ${cx-fusW*.55} ${noseY-fusL*.08} ${cx} ${noseY-fusL*.18} Z`;
-  if(a.includes('flying-wing')||a==='fighter-delta') fus=`M ${cx} ${cy-root*.18} Q ${cx+fusW*.65} ${cy-root*.04} ${cx+fusW*.72} ${cy+root*.58} L ${cx} ${cy+root*.88} L ${cx-fusW*.72} ${cy+root*.58} Q ${cx-fusW*.65} ${cy-root*.04} ${cx} ${cy-root*.18} Z`;
-  return {a,cx,cy,half,root,tip,sweep,wing,fus,fusL,fusW,noseY};
+  const finX=tailX, finY=fusY+hc+28, vc=p.vStabChordMM||70, vh=p.vStabHeightMM||80;
+  const fin=`M${finX} ${finY+vh} Q${finX+vc*.28} ${finY} ${finX+vc*.72} ${finY+vh*.18} L${finX+vc} ${finY+vh} Z`;
+  const labels=`${svgText(M,M-15,'LEFT WING PANEL · 1×',13,line,'start',600)}${svgText(M+half+gap,M-15,'RIGHT WING PANEL · 1×',13,line,'start',600)}${svgText(fusX,fusY-15,'FUSELAGE SIDE · 2×',13,line,'start',600)}${hspan?svgText(tailX,fusY-15,'HORIZONTAL TAIL · 1×',13,line,'start',600):''}${svgText(finX,finY-10,'VERTICAL FIN · '+(p.tailType==='flyingwing'?'2×':'1×'),13,line,'start',600)}`;
+  const dims=opts.physical?` width="${num(W)}mm" height="${num(H)}mm"`:' width="100%"';
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${num(W)} ${num(H)}"${dims}><rect width="${W}" height="${H}" fill="${bg}"/><path d="${left}" fill="none" stroke="${line}" stroke-width="2"/><path d="${right}" fill="none" stroke="${line}" stroke-width="2"/>${lineEl(M+half*.12,sparY,M+half*.92,sparY,dim,1.5,'8 6')}${lineEl(M+half+gap+half*.08,sparY,M+half+gap+half*.88,sparY,dim,1.5,'8 6')}${lineEl(M+half*.15,hingeY,M+half*.92,hingeY,dim,1.5,'4 5')}${lineEl(M+half+gap+half*.08,hingeY,M+half+gap+half*.85,hingeY,dim,1.5,'4 5')}<path d="${fus}" fill="none" stroke="${line}" stroke-width="2"/>${htail?`<path d="${htail}" fill="none" stroke="${line}" stroke-width="2"/>`:''}<path d="${fin}" fill="none" stroke="${line}" stroke-width="2"/>${labels}<circle cx="${M+half}" cy="${M+Math.min(root*.72,computeStats(p).cgFromRootLE)}" r="8" fill="none" stroke="${ac}" stroke-width="2"/>${svgText(M,H-50,`RTFOAM · ${architectureOf(p).replaceAll('-',' ').toUpperCase()} · TRUE SCALE CUT SHEET · V10`,14,line,'start',600)}${svgText(W-M,H-50,'SOLID: CUT · DASHED: SPAR / HINGE · PRINT 100%',12,dim,'end',500)}</svg>`;
+}
+function lineEl(x1,y1,x2,y2,stroke,w=1.5,dash=''){return `<path d="M${num(x1)} ${num(y1)}L${num(x2)} ${num(y2)}" fill="none" stroke="${stroke}" stroke-width="${w}"${dash?` stroke-dasharray="${dash}"`:''}/>`}
+
+function v10Geometry(p,W=900,H=420){
+  const style=styleOf(p), arch=architectureOf(p), cx=W/2;
+  const span=Math.min(W*.82, Math.max(W*.52,p.wingspanMM*.65)), half=span/2;
+  const root=Math.min(H*.43,Math.max(105,p.rootChordMM*.58));
+  const tip=Math.max(42,Math.min(root*.72,p.tipChordMM*.52));
+  const sweep=Math.min(root*.92,Math.max(0,p.sweepMM*.52));
+  const wingY=style==='trainer'?125:style==='warbird'?155:105;
+  let wing='', leftWing='', rightWing='', fus='', htail='', vtail='', fins='';
+  const fusL=Math.min(H*.72,Math.max(190,p.fuselageLengthMM*.43));
+  const fusW=Math.max(34,Math.min(78,p.fuselageHeightMM*.55));
+  const tailY=wingY+fusL*.78;
+
+  if(style==='trainer'){
+    const r=22;
+    leftWing=`M${cx-12} ${wingY} L${cx-half+r} ${wingY+sweep} Q${cx-half} ${wingY+sweep} ${cx-half} ${wingY+sweep+r} L${cx-half} ${wingY+sweep+tip-r} Q${cx-half} ${wingY+sweep+tip} ${cx-half+r} ${wingY+sweep+tip} L${cx-12} ${wingY+root} Z`;
+    rightWing=leftWing.replaceAll(String(cx-half),String(cx+half)).replaceAll(String(cx-12),String(cx+12));
+    rightWing=`M${cx+12} ${wingY} L${cx+half-r} ${wingY+sweep} Q${cx+half} ${wingY+sweep} ${cx+half} ${wingY+sweep+r} L${cx+half} ${wingY+sweep+tip-r} Q${cx+half} ${wingY+sweep+tip} ${cx+half-r} ${wingY+sweep+tip} L${cx+12} ${wingY+root} Z`;
+    wing=leftWing+' '+rightWing;
+    fus=`M${cx} ${wingY-85} Q${cx+fusW*.48} ${wingY-64} ${cx+fusW*.48} ${wingY+70} L${cx+fusW*.26} ${tailY+55} L${cx-fusW*.26} ${tailY+55} L${cx-fusW*.48} ${wingY+70} Q${cx-fusW*.48} ${wingY-64} ${cx} ${wingY-85} Z`;
+    htail=`M${cx-145} ${tailY+18} Q${cx-148} ${tailY+5} ${cx-125} ${tailY} L${cx} ${tailY-8} L${cx+125} ${tailY} Q${cx+148} ${tailY+5} ${cx+145} ${tailY+18} L${cx} ${tailY+40} Z`;
+    vtail=`M${cx} ${tailY+35} Q${cx+46} ${tailY+15} ${cx+38} ${tailY-55} L${cx} ${tailY-23} Z`;
+  } else if(style==='warbird'){
+    leftWing=`M${cx-18} ${wingY} C${cx-half*.28} ${wingY+sweep*.02} ${cx-half*.72} ${wingY+sweep*.25} ${cx-half} ${wingY+sweep+tip*.38} C${cx-half*.98} ${wingY+sweep+tip*.78} ${cx-half*.70} ${wingY+sweep+tip} ${cx-half*.50} ${wingY+sweep+tip*.94} L${cx-18} ${wingY+root} Z`;
+    rightWing=`M${cx+18} ${wingY} C${cx+half*.28} ${wingY+sweep*.02} ${cx+half*.72} ${wingY+sweep*.25} ${cx+half} ${wingY+sweep+tip*.38} C${cx+half*.98} ${wingY+sweep+tip*.78} ${cx+half*.70} ${wingY+sweep+tip} ${cx+half*.50} ${wingY+sweep+tip*.94} L${cx+18} ${wingY+root} Z`;
+    wing=leftWing+' '+rightWing;
+    fus=`M${cx} ${wingY-118} C${cx+fusW*.58} ${wingY-110} ${cx+fusW*.62} ${wingY-52} ${cx+fusW*.55} ${wingY+45} C${cx+fusW*.48} ${wingY+130} ${cx+fusW*.28} ${tailY+30} ${cx+fusW*.15} ${tailY+70} L${cx-fusW*.15} ${tailY+70} C${cx-fusW*.28} ${tailY+30} ${cx-fusW*.48} ${wingY+130} ${cx-fusW*.55} ${wingY+45} C${cx-fusW*.62} ${wingY-52} ${cx-fusW*.58} ${wingY-110} ${cx} ${wingY-118} Z`;
+    htail=`M${cx-125} ${tailY+25} C${cx-95} ${tailY+4} ${cx-35} ${tailY} ${cx} ${tailY-8} C${cx+35} ${tailY} ${cx+95} ${tailY+4} ${cx+125} ${tailY+25} C${cx+90} ${tailY+40} ${cx+35} ${tailY+42} ${cx} ${tailY+45} C${cx-35} ${tailY+42} ${cx-90} ${tailY+40} ${cx-125} ${tailY+25} Z`;
+    vtail=`M${cx} ${tailY+40} C${cx+52} ${tailY+5} ${cx+38} ${tailY-70} ${cx+7} ${tailY-96} L${cx} ${tailY-20} Z`;
+  } else if(style==='fighter'){
+    if(p.tailType==='flyingwing'){
+      leftWing=`M${cx-8} ${wingY} L${cx-half} ${wingY+sweep+10} L${cx-half*.82} ${wingY+sweep+tip} L${cx-8} ${wingY+root} Z`;
+      rightWing=`M${cx+8} ${wingY} L${cx+half} ${wingY+sweep+10} L${cx+half*.82} ${wingY+sweep+tip} L${cx+8} ${wingY+root} Z`;
+    }else{
+      leftWing=`M${cx-18} ${wingY+12} L${cx-half} ${wingY+sweep} L${cx-half*.76} ${wingY+sweep+tip} L${cx-18} ${wingY+root} Z`;
+      rightWing=`M${cx+18} ${wingY+12} L${cx+half} ${wingY+sweep} L${cx+half*.76} ${wingY+sweep+tip} L${cx+18} ${wingY+root} Z`;
+      htail=`M${cx-115} ${tailY+8} L${cx} ${tailY-18} L${cx+115} ${tailY+8} L${cx+78} ${tailY+34} L${cx} ${tailY+28} L${cx-78} ${tailY+34} Z`;
+    }
+    wing=leftWing+' '+rightWing;
+    fus=`M${cx} ${wingY-125} L${cx+fusW*.38} ${wingY-58} L${cx+fusW*.48} ${wingY+105} L${cx+fusW*.16} ${tailY+70} L${cx-fusW*.16} ${tailY+70} L${cx-fusW*.48} ${wingY+105} L${cx-fusW*.38} ${wingY-58} Z`;
+    fins=`M${cx-half*.48} ${wingY+sweep+tip*.45} l-8 -62 l38 16 l4 58 z M${cx+half*.48} ${wingY+sweep+tip*.45} l8 -62 l-38 16 l-4 58 z`;
+    if(p.tailType!=='flyingwing') vtail=`M${cx} ${tailY+35} L${cx+42} ${tailY-70} L${cx+18} ${tailY+48} Z`;
+  } else {
+    leftWing=`M${cx-28} ${wingY} L${cx-half} ${wingY+sweep} Q${cx-half*1.01} ${wingY+sweep+tip*.55} ${cx-half*.84} ${wingY+sweep+tip} L${cx-28} ${wingY+root} Z`;
+    rightWing=`M${cx+28} ${wingY} L${cx+half} ${wingY+sweep} Q${cx+half*1.01} ${wingY+sweep+tip*.55} ${cx+half*.84} ${wingY+sweep+tip} L${cx+28} ${wingY+root} Z`;
+    wing=leftWing+' '+rightWing;
+    fus=`M${cx} ${wingY-78} Q${cx+fusW*.72} ${wingY-38} ${cx+fusW*.68} ${wingY+root*.42} L${cx+fusW*.42} ${wingY+root*.92} L${cx} ${wingY+root+45} L${cx-fusW*.42} ${wingY+root*.92} L${cx-fusW*.68} ${wingY+root*.42} Q${cx-fusW*.72} ${wingY-38} ${cx} ${wingY-78} Z`;
+    fins=`M${cx-half*.56} ${wingY+sweep+tip*.48} l-10 -70 q32 -18 52 8 l3 70 z M${cx+half*.56} ${wingY+sweep+tip*.48} l10 -70 q-32 -18 -52 8 l-3 70 z`;
+  }
+  return {style,arch,cx,wingY,span,half,root,tip,sweep,fusL,fusW,tailY,wing,leftWing,rightWing,fus,htail,vtail,fins};
 }
 function buildReadyViewSVG(p,c){
-  const W=900,H=360,g=archTopGeometry(p,W,H),st=computeStats(p), ac=c.accent, line=c.line, dim=c.dim;
-  let tails='';
-  if(g.a==='trainer-high-wing'||g.a==='warbird-elliptical'){
-    const hs=Math.min(210,p.hStabSpanMM*.42), hy=g.noseY+g.fusL*.88;
-    tails+=`<path d="M ${g.cx-hs} ${hy+28} Q ${g.cx-hs} ${hy+8} ${g.cx-hs+20} ${hy+6} L ${g.cx} ${hy} L ${g.cx+hs-20} ${hy+6} Q ${g.cx+hs} ${hy+8} ${g.cx+hs} ${hy+28} L ${g.cx} ${hy+42} Z" fill="${ac}" fill-opacity=".10" stroke="${line}" stroke-width="2"/>`;
-    tails+=`<path d="M ${g.cx} ${hy-5} Q ${g.cx+42} ${hy+18} ${g.cx+25} ${hy+90} L ${g.cx} ${hy+75} Z" fill="${ac}" fill-opacity=".18" stroke="${line}" stroke-width="2"/>`;
-  } else {
-    const fy=g.cy+g.sweep+g.tip*.35, off=g.half*.62;
-    tails+=`<path d="M ${g.cx-off} ${fy} l -18 -70 q 28 -18 50 4 l 8 76 z M ${g.cx+off} ${fy} l 18 -70 q -28 -18 -50 4 l -8 76 z" fill="${ac}" fill-opacity=".18" stroke="${line}" stroke-width="2"/>`;
-  }
-  const cgY=g.cy+st.cgFromRootLE*Math.min(.55,620/p.wingspanMM);
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%"><rect width="${W}" height="${H}" fill="${c.bg}"/><path d="${g.wing}" fill="${ac}" fill-opacity=".10" stroke="${line}" stroke-width="3"/>${tails}<path d="${g.fus}" fill="${c.bg}" stroke="${line}" stroke-width="3"/><path d="M ${g.cx-g.half*.8} ${g.cy+g.sweep+g.tip*.68} L ${g.cx-g.root*.1} ${g.cy+g.root*.72} M ${g.cx+g.root*.1} ${g.cy+g.root*.72} L ${g.cx+g.half*.8} ${g.cy+g.sweep+g.tip*.68}" stroke="${dim}" stroke-width="2" stroke-dasharray="9 7"/><circle cx="${g.cx}" cy="${cgY}" r="8" fill="none" stroke="${ac}" stroke-width="2"/><path d="M${g.cx-13} ${cgY}H${g.cx+13}M${g.cx} ${cgY-13}V${cgY+13}" stroke="${ac}" stroke-width="2"/>${svgText(24,35,(p.name||'AIRCRAFT').toUpperCase(),18,line,'start',600)}${svgText(876,35,architectureOf(p).replaceAll('-',' ').toUpperCase(),12,dim,'end',500)}</svg>`;
+  const W=900,H=420,g=v10Geometry(p,W,H),st=computeStats(p),line=c.line,dim=c.dim,ac=c.accent;
+  const cgY=g.wingY+Math.min(g.root*.72,st.cgFromRootLE*.48);
+  const wingFill=pathEl(g.wing,ac,line,3,'fill-opacity=".10"');
+  const tail=(g.htail?pathEl(g.htail,ac,line,2,'fill-opacity=".09"'):'')+(g.vtail?pathEl(g.vtail,ac,line,2,'fill-opacity=".17"'):'')+(g.fins?pathEl(g.fins,ac,line,2,'fill-opacity=".17"'):'');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%"><rect width="${W}" height="${H}" fill="${c.bg}"/>${wingFill}${tail}${pathEl(g.fus,c.bg,line,3)}${lineEl(g.cx-g.half*.76,g.wingY+g.sweep+g.tip*.70,g.cx-34,g.wingY+g.root*.72,dim,2,'8 7')}${lineEl(g.cx+34,g.wingY+g.root*.72,g.cx+g.half*.76,g.wingY+g.sweep+g.tip*.70,dim,2,'8 7')}<circle cx="${g.cx}" cy="${num(cgY)}" r="8" fill="none" stroke="${ac}" stroke-width="2"/>${lineEl(g.cx-13,cgY,g.cx+13,cgY,ac,2)}${lineEl(g.cx,cgY-13,g.cx,cgY+13,ac,2)}${svgText(24,35,(p.name||'AIRCRAFT').toUpperCase(),18,line,'start',600)}${svgText(876,35,architectureOf(p).replaceAll('-',' ').toUpperCase(),12,dim,'end',500)}</svg>`;
 }
 function buildPerspectiveViewSVG(p,c){
-  const W=900,H=360,g=archTopGeometry(p,W,H), line=c.line, ac=c.accent, dim=c.dim;
-  const top=buildReadyViewSVG(p,c).replace(/^<svg[^>]*>/,'').replace(/<rect[^>]*\/>/,'').replace(/<\/svg>$/,'');
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%"><rect width="${W}" height="${H}" fill="${c.bg}"/><g transform="translate(55,-8) skewX(-12) scale(.88,.72)">${top}</g><path d="M180 292 Q450 335 720 292" fill="none" stroke="${dim}" opacity=".35"/><ellipse cx="450" cy="300" rx="255" ry="22" fill="#000" opacity=".15"/>${svgText(24,35,(p.name||'AIRCRAFT').toUpperCase(),18,line,'start',600)}${svgText(876,35,'PERSPECTIVE ASSEMBLED VIEW',12,dim,'end',500)}</svg>`;
+  const W=900,H=420,inner=buildReadyViewSVG(p,c).replace(/^<svg[^>]*>/,'').replace(/<rect[^>]*\/>/,'').replace(/<text[\s\S]*$/,'');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%"><rect width="${W}" height="${H}" fill="${c.bg}"/><g transform="translate(72,8) skewX(-13) scale(.84,.70)">${inner}</g><ellipse cx="455" cy="350" rx="275" ry="25" fill="#000" opacity=".13"/>${svgText(24,35,(p.name||'AIRCRAFT').toUpperCase(),18,c.line,'start',600)}${svgText(876,35,'PERSPECTIVE ASSEMBLED VIEW',12,c.dim,'end',500)}</svg>`;
 }
 function buildExplodedPreviewSVG(p,c){
-  const W=900,H=360,g=archTopGeometry(p,W,H), line=c.line, ac=c.accent, dim=c.dim;
-  const left=`M ${g.cx-45} ${g.cy} L ${g.cx-g.half} ${g.cy+g.sweep} L ${g.cx-g.half*.88} ${g.cy+g.sweep+g.tip} L ${g.cx-45} ${g.cy+g.root} Z`;
-  const right=`M ${g.cx+45} ${g.cy} L ${g.cx+g.half} ${g.cy+g.sweep} L ${g.cx+g.half*.88} ${g.cy+g.sweep+g.tip} L ${g.cx+45} ${g.cy+g.root} Z`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%"><rect width="${W}" height="${H}" fill="${c.bg}"/><g transform="translate(-38,-8)"><path d="${left}" fill="${ac}" fill-opacity=".10" stroke="${line}" stroke-width="3"/></g><g transform="translate(38,-8)"><path d="${right}" fill="${ac}" fill-opacity=".10" stroke="${line}" stroke-width="3"/></g><g transform="translate(0,38)"><path d="${g.fus}" fill="${c.bg}" stroke="${line}" stroke-width="3"/></g><path d="M${g.cx-48} ${g.cy+20}L${g.cx-10} ${g.cy+62}M${g.cx+48} ${g.cy+20}L${g.cx+10} ${g.cy+62}" stroke="${dim}" stroke-dasharray="7 6"/><rect x="${g.cx-g.half*.72}" y="${g.cy+g.root+70}" width="${g.half*.55}" height="8" rx="4" fill="${line}" opacity=".7"/><rect x="${g.cx+g.half*.17}" y="${g.cy+g.root+70}" width="${g.half*.55}" height="8" rx="4" fill="${line}" opacity=".7"/>${svgText(24,35,(p.name||'AIRCRAFT').toUpperCase(),18,line,'start',600)}${svgText(876,35,'EXPLODED ASSEMBLY',12,dim,'end',500)}</svg>`;
+  const W=900,H=420,g=v10Geometry(p,W,H),line=c.line,dim=c.dim,ac=c.accent;
+  const left=pathEl(g.leftWing,ac,line,3,'fill-opacity=".10" transform="translate(-46,-18)"');
+  const right=pathEl(g.rightWing,ac,line,3,'fill-opacity=".10" transform="translate(46,-18)"');
+  const center=pathEl(g.fus,c.bg,line,3,'transform="translate(0,45)"');
+  const tails=(g.htail?pathEl(g.htail,ac,line,2,'fill-opacity=".10" transform="translate(0,62)"'):'')+(g.vtail?pathEl(g.vtail,ac,line,2,'fill-opacity=".18" transform="translate(0,82)"'):'')+(g.fins?pathEl(g.fins,ac,line,2,'fill-opacity=".18" transform="translate(0,-48)"'):'');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%"><rect width="${W}" height="${H}" fill="${c.bg}"/>${left}${right}${center}${tails}${lineEl(g.cx-75,g.wingY+30,g.cx-20,g.wingY+85,dim,1.5,'7 6')}${lineEl(g.cx+75,g.wingY+30,g.cx+20,g.wingY+85,dim,1.5,'7 6')}<rect x="${num(g.cx-g.half*.73)}" y="${num(g.wingY+g.root+95)}" width="${num(g.half*.55)}" height="8" rx="4" fill="${line}" opacity=".65"/><rect x="${num(g.cx+g.half*.18)}" y="${num(g.wingY+g.root+95)}" width="${num(g.half*.55)}" height="8" rx="4" fill="${line}" opacity=".65"/>${svgText(24,35,(p.name||'AIRCRAFT').toUpperCase(),18,line,'start',600)}${svgText(876,35,'EXPLODED ASSEMBLY',12,dim,'end',500)}</svg>`;
 }
 function buildDesignDossierSVG(p,c){
-  const W=1600,H=1060,line='#202428',dim='#555c63',ac='#9b6b3e',paper='#f7f7f3',st=computeStats(p),arch=architectureOf(p);
-  const top=buildReadyViewSVG(p,{bg:paper,line,dim,accent:ac,grid:'#ddd'}).replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');
-  const exploded=buildExplodedPreviewSVG(p,{bg:paper,line,dim,accent:ac,grid:'#ddd'}).replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');
-  const perspective=buildPerspectiveViewSVG(p,{bg:paper,line,dim,accent:ac,grid:'#ddd'}).replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');
+  const W=1600,H=1060,line='#202428',dim='#5a6066',ac='#9b6b3e',paper='#f7f7f3',st=computeStats(p),style=styleOf(p),arch=architectureOf(p);
+  const exp=buildExplodedPreviewSVG(p,{bg:paper,line,dim,accent:ac}).replace(/^<svg[^>]*>/,'').replace(/<rect[^>]*\/>/,'').replace(/<text[\s\S]*$/,'');
+  const top=buildReadyViewSVG(p,{bg:paper,line,dim,accent:ac}).replace(/^<svg[^>]*>/,'').replace(/<rect[^>]*\/>/,'').replace(/<text[\s\S]*$/,'');
+  const perspective=buildPerspectiveViewSVG(p,{bg:paper,line,dim,accent:ac}).replace(/^<svg[^>]*>/,'').replace(/<rect[^>]*\/>/,'').replace(/<text[\s\S]*$/,'');
   const specs=[['Wingspan',p.wingspanMM+' mm'],['Length',p.fuselageLengthMM+' mm'],['Flying weight',p.weightG+' g'],['Motor',p.motor],['Battery',p.motorBattery||'—'],['Propeller',p.motorProp||'—'],['Servos',p.servoCount+' ×'],['CG',p.cgPercentMAC+'% MAC'],['Wing loading',num(st.wingLoading)+' g/dm²'],['Material',p.foam]];
   const rows=specs.map((r,i)=>`${svgText(42,292+i*30,r[0]+':',15,line,'start',600)}${svgText(205,292+i*30,r[1],15,dim)}`).join('');
-  const call=(x1,y1,x2,y2,label,ax='start')=>`<path d="M${x1} ${y1}L${x2} ${y2}" stroke="${dim}" stroke-width="1.4" stroke-dasharray="7 6"/>${svgText(x1,y1-8,label,15,line,ax,600)}`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%"><rect width="${W}" height="${H}" fill="${paper}"/><rect x="18" y="18" width="1564" height="1024" rx="12" fill="none" stroke="#9a9a94"/><g>${svgText(30,78,(p.name||'AIRCRAFT').toUpperCase(),52,line,'start',700)}${svgText(32,114,arch.replaceAll('-',' ').toUpperCase()+' · FOAM RC AIRCRAFT',19,dim,'start',500)}<path d="M30 132H400" stroke="${line}" stroke-width="2"/>${svgText(32,170,'Validated architecture with build-specific geometry,',17,dim)}${svgText(32,194,'assembly references, power system, and CG.',17,dim)}<rect x="28" y="225" width="380" height="390" rx="9" fill="none" stroke="#999"/>${svgText(42,260,'SPECIFICATIONS (RECOMMENDED)',17,line,'start',700)}${rows}<rect x="430" y="26" width="1142" height="620" rx="10" fill="none" stroke="#999"/><rect x="430" y="26" width="190" height="40" rx="7" fill="${line}"/>${svgText(448,53,'EXPLODED VIEW',17,paper,'start',700)}<svg x="500" y="82" width="1000" height="500" viewBox="0 0 900 360">${exploded}</svg>${call(570,145,770,230,'LEFT WING PANEL')}${call(1425,145,1240,230,'RIGHT WING PANEL','end')}${call(1030,105,1000,235,'CENTER STRUCTURE')}${call(600,560,760,520,'SPAR / JOINER')}${call(1410,560,1260,520,'SPAR / JOINER','end')}<rect x="28" y="665" width="1544" height="350" rx="10" fill="none" stroke="#999"/><rect x="28" y="665" width="145" height="40" rx="7" fill="${line}"/>${svgText(46,692,'READY VIEWS',17,paper,'start',700)}<svg x="360" y="700" width="550" height="245" viewBox="0 0 900 360">${top}</svg><svg x="930" y="700" width="600" height="245" viewBox="0 0 900 360">${perspective}</svg>${svgText(45,750,'ASSEMBLY SEQUENCE',17,line,'start',700)}${svgText(45,785,'1  Cut mirrored parts and verify symmetry.',14,dim)}${svgText(45,815,'2  Install spars and joiners before closing skins.',14,dim)}${svgText(45,845,'3  Dry-fit wings, pod, and tail before adhesive.',14,dim)}${svgText(45,875,'4  Position battery at the marked CG range.',14,dim)}${svgText(45,905,'5  Check throws, direction, and glide trim.',14,dim)}${svgText(1540,1025,'RTFOAM · BUILD DOSSIER · V9',12,dim,'end',500)}</g></svg>`;
+  const labels= style==='warbird' ? ['LEFT ELLIPTICAL WING','RIGHT ELLIPTICAL WING','COWL / FUSELAGE','HORIZONTAL TAIL','FIREWALL + SPAR'] : style==='fighter' ? ['LEFT SWEPT PANEL','RIGHT SWEPT PANEL','POINTED FUSELAGE','TAIL / TWIN FINS','MAIN SPAR'] : style==='experimental' ? ['LEFT WING MODULE','RIGHT WING MODULE','EQUIPMENT POD','TWIN VERTICAL FINS','CARBON SPAR'] : ['LEFT HIGH-WING PANEL','RIGHT HIGH-WING PANEL','BOX FUSELAGE','TAIL ASSEMBLY','DIHEDRAL JOINER'];
+  const call=(x1,y1,x2,y2,label,anchor='start')=>`${lineEl(x1,y1,x2,y2,dim,1.4,'7 6')}${svgText(x1,y1-8,label,15,line,anchor,600)}`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%"><rect width="${W}" height="${H}" fill="${paper}"/><rect x="18" y="18" width="1564" height="1024" rx="12" fill="none" stroke="#9a9a94"/>${svgText(30,78,(p.name||'AIRCRAFT').toUpperCase(),52,line,'start',700)}${svgText(32,114,arch.replaceAll('-',' ').toUpperCase()+' · FOAM RC AIRCRAFT',19,dim,'start',500)}<path d="M30 132H400" stroke="${line}" stroke-width="2"/>${svgText(32,170,'Architecture-specific parts, assembly order,',17,dim)}${svgText(32,194,'power system, stability data, and true geometry.',17,dim)}<rect x="28" y="225" width="380" height="390" rx="9" fill="none" stroke="#999"/>${svgText(42,260,'SPECIFICATIONS (RECOMMENDED)',17,line,'start',700)}${rows}<rect x="430" y="26" width="1142" height="620" rx="10" fill="none" stroke="#999"/><rect x="430" y="26" width="190" height="40" rx="7" fill="${line}"/>${svgText(448,53,'EXPLODED VIEW',17,paper,'start',700)}<svg x="500" y="82" width="1000" height="500" viewBox="0 0 900 420">${exp}</svg>${call(570,145,755,235,labels[0])}${call(1425,145,1245,235,labels[1],'end')}${call(1020,105,1000,250,labels[2])}${call(610,565,760,510,labels[4])}${call(1410,565,1250,510,labels[3],'end')}<rect x="28" y="665" width="1544" height="350" rx="10" fill="none" stroke="#999"/><rect x="28" y="665" width="145" height="40" rx="7" fill="${line}"/>${svgText(46,692,'READY VIEWS',17,paper,'start',700)}<svg x="350" y="700" width="570" height="260" viewBox="0 0 900 420">${top}</svg><svg x="925" y="700" width="620" height="260" viewBox="0 0 900 420">${perspective}</svg>${svgText(45,750,'ASSEMBLY SEQUENCE',17,line,'start',700)}${svgText(45,785,'1  Cut every architecture-specific part at true scale.',14,dim)}${svgText(45,815,'2  Dry-fit wing roots, spars, firewall, and tail keys.',14,dim)}${svgText(45,845,'3  Join mirrored panels without twist or overlap.',14,dim)}${svgText(45,875,'4  Install electronics with battery movable through CG.',14,dim)}${svgText(45,905,'5  Verify throws, balance, glide trim, and structure.',14,dim)}${svgText(1540,1025,'RTFOAM · BUILD DOSSIER · V11',12,dim,'end',500)}</svg>`;
 }
 
 const THEMES = {
@@ -670,6 +750,6 @@ const PRINT_COLORS = { bg: '#FFFFFF', line: '#1E3A5F', dim: '#5A6B80', accent: '
 
 window.PlanLib = {
   computeStats, buildPlanSVG, buildReadyViewSVG, buildPerspectiveViewSVG, buildExplodedPreviewSVG, buildDesignDossierSVG, SEED_DESIGNS, buildPrompt, parseDesign, THEMES, PRINT_COLORS,
-  VERSION: 9
+  VERSION: 11
 };
 })();

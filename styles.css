@@ -242,7 +242,7 @@ footer span { font-family: var(--mono); font-size: 11px; letter-spacing: 2px; co
   .plane-wire { opacity: 0; }
 }
 
-/* ============ RTFOAM V9 — engineering solver ============ */
+/* ============ RTFOAM V10 — engineering solver ============ */
 .seg button:disabled,
 .seg button.unavailable {
   opacity: .28;
@@ -325,7 +325,7 @@ footer span { font-family: var(--mono); font-size: 11px; letter-spacing: 2px; co
   .solver-nodes, .solver-progress span { animation: none; }
 }
 
-/* V9 view controls and dossier */
+/* V10 view controls and dossier */
 .hangar-view-switch,.detail-view-switch{display:flex;gap:8px;flex-wrap:wrap}
 .hangar-view-switch .on,.detail-view-switch .on{border-color:var(--accent);color:var(--accent);background:rgba(249,114,104,.08)}
 .detail-plan-wrap{flex:2 1 620px;min-width:0}

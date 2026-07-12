@@ -14,7 +14,7 @@
    ============================================================ */
 
 const Lib = window.PlanLib;
-const APP_VERSION = 9; // must match PlanLib.VERSION — mismatch means stale files on the server
+const APP_VERSION = 11; // must match PlanLib.VERSION — mismatch means stale files on the server
 const LS_DESIGNS = 'slipstream_designs_v1';
 const LS_LOGS = 'slipstream_flightlog_v1';
 
@@ -232,18 +232,34 @@ async function sbLoadGallery() {
    which ONLY forwards the already-expanded prompt. It adds no
    fallback design rules of its own.
    ============================================================ */
-async function llmComplete(system, messages) {
-  if (!CONFIG.API_PROXY_URL) {
-    throw new Error('This site is not connected to a model yet. Site owner: deploy worker.js and set CONFIG.API_PROXY_URL in index.html.');
-  }
-  const r = await fetch(CONFIG.API_PROXY_URL, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ system, messages }),
-  });
+async function apiCall(payload) {
+  if (!CONFIG.API_PROXY_URL) throw new Error('This site is not connected to the RTFOAM worker.');
+  const r = await fetch(CONFIG.API_PROXY_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok || j.error) throw new Error(j.error || 'Proxy error ' + r.status);
+  return j;
+}
+async function llmComplete(system, messages) {
+  const j = await apiCall({ action: 'design', system, messages });
   return j.text || '';
+}
+function sanitizeSvg(svg) {
+  const text = String(svg || '').trim();
+  if (!/^<svg[\s>]/i.test(text)) throw new Error('Visual renderer returned invalid SVG.');
+  const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+  if (doc.querySelector('parsererror')) throw new Error('Visual renderer returned malformed SVG.');
+  for (const node of [...doc.querySelectorAll('script,foreignObject,iframe,object,embed,audio,video')]) node.remove();
+  for (const el of [...doc.querySelectorAll('*')]) for (const attr of [...el.attributes]) {
+    const n = attr.name.toLowerCase(), v = attr.value.trim();
+    if (n.startsWith('on') || ((n === 'href' || n === 'xlink:href') && !v.startsWith('#'))) el.removeAttribute(attr.name);
+  }
+  return new XMLSerializer().serializeToString(doc.documentElement);
+}
+async function generateVisualPackage(design) {
+  const referenceImageUrl = new URL('assets/xw1-reference.jpg', document.baseURI).href;
+  const j = await apiCall({ action: 'render_svg', design, referenceImageUrl });
+  const v = j.visuals || {};
+  return { dossierSvg: sanitizeSvg(v.dossierSvg), topSvg: sanitizeSvg(v.topSvg), explodedSvg: sanitizeSvg(v.explodedSvg), perspectiveSvg: sanitizeSvg(v.perspectiveSvg) };
 }
 
 function buildMemory() {
@@ -404,6 +420,9 @@ async function onGenerate() {
         throw new Error('Internal mismatch: requested "' + state.form.controlConfig + '" but generated a horizontal tail. Check for stale files (see debug panel).');
     }
     const design = { id: 'd' + Date.now(), userMade: true, createdAt: Date.now(), ...parsed };
+    state.log.push('> ART-DIRECTING DESIGN-SPECIFIC SVG DOSSIER…'); renderLogLines();
+    try { design.visuals = await generateVisualPackage(design); }
+    catch (visualError) { design.visualError = String(visualError?.message || visualError); }
     state.designs.unshift(design);
     persist();
     sbSaveDesign(design);
@@ -458,6 +477,7 @@ function openDesign(id) {
   window.scrollTo(0, 0);
 }
 const active = () => state.designs.find(d => d.id === state.activeId) || null;
+const renderParams = d => ({ ...d.params, designStyle: d.styleTag, styleTag: d.styleTag, controlConfigTag: d.controlConfigTag });
 
 /* ============================================================
    FORM EVENT HANDLERS
@@ -508,7 +528,7 @@ function syncFormButtons() {
    ============================================================ */
 function onDownloadSvg() {
   const d = active(); if (!d) return;
-  const svg = Lib.buildPlanSVG(d.params, Lib.PRINT_COLORS, { physical: true });
+  const svg = Lib.buildPlanSVG(renderParams(d), Lib.PRINT_COLORS, { physical: true });
   const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
   const a = document.createElement('a');
   a.href = url;
@@ -519,7 +539,7 @@ function onDownloadSvg() {
 
 function onPrintPdf() {
   const d = active(); if (!d) return;
-  const svg = Lib.buildDesignDossierSVG(d.params, Lib.PRINT_COLORS);
+  const svg = d.visuals?.dossierSvg || Lib.buildDesignDossierSVG(renderParams(d), Lib.PRINT_COLORS);
   const f = document.createElement('iframe');
   f.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0';
   document.body.appendChild(f);
@@ -661,8 +681,18 @@ function renderDetailPlan() {
   const d = active(); if (!d) return;
   const el = document.getElementById('detail-plan'); if (!el) return;
   el.innerHTML = state.detailView === 'cutsheet'
-    ? Lib.buildPlanSVG(d.params, Lib.PRINT_COLORS)
-    : Lib.buildDesignDossierSVG(d.params, Lib.PRINT_COLORS);
+    ? Lib.buildPlanSVG(renderParams(d), Lib.PRINT_COLORS)
+    : (d.visuals?.dossierSvg || Lib.buildDesignDossierSVG(renderParams(d), Lib.PRINT_COLORS));
+}
+
+async function onRegenerateVisuals() {
+  const d = active(); if (!d || state.generating) return;
+  const btn = document.getElementById('btn-regenerate-visual');
+  try {
+    state.generating = true; if (btn) { btn.disabled = true; btn.textContent = 'RENDERING WITH GPT-5.6…'; }
+    d.visuals = await generateVisualPackage(d); delete d.visualError; persist(); sbSaveDesign(d); renderDetailPlan(); renderCards();
+  } catch (e) { alert('Visual rendering failed: ' + String(e?.message || e)); }
+  finally { state.generating = false; if (btn) { btn.disabled = false; btn.textContent = 'RENDER / REBUILD AI DOSSIER'; } }
 }
 
 /* ============================================================
@@ -679,7 +709,7 @@ function renderCards() {
       + (log && log.verdict ? ' · ' + log.verdict : '') + (d.userMade ? ' · YOURS' : '');
     return `
     <div class="card" style="animation-delay:${Math.min(i * 60, 480)}ms" onclick="openDesign('${h(d.id)}')">
-      <div class="preview">${state.hangarView === 'exploded' ? Lib.buildExplodedPreviewSVG(d.params, theme) : state.hangarView === 'perspective' ? Lib.buildPerspectiveViewSVG(d.params, theme) : Lib.buildReadyViewSVG(d.params, theme)}</div>
+      <div class="preview">${state.hangarView === 'exploded' ? (d.visuals?.explodedSvg || Lib.buildExplodedPreviewSVG(renderParams(d), theme)) : state.hangarView === 'perspective' ? (d.visuals?.perspectiveSvg || Lib.buildPerspectiveViewSVG(renderParams(d), theme)) : (d.visuals?.topSvg || Lib.buildReadyViewSVG(renderParams(d), theme))}</div>
       <div class="body">
         <div class="title-row"><span class="name">${h(d.name)}</span><span class="tag">${h(d.styleTag)}</span></div>
         <span class="meta">${h(meta)}</span>
