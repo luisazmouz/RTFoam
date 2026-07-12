@@ -14,7 +14,7 @@
    ============================================================ */
 
 const Lib = window.PlanLib;
-const APP_VERSION = 5; // must match PlanLib.VERSION — mismatch means stale files on the server
+const APP_VERSION = 6; // must match PlanLib.VERSION — mismatch means stale files on the server
 const LS_DESIGNS = 'slipstream_designs_v1';
 const LS_LOGS = 'slipstream_flightlog_v1';
 
@@ -258,6 +258,61 @@ function buildMemory() {
   return out.slice(0, 8);
 }
 
+function buildHangarInventory() {
+  return state.designs.slice(0, 60).map(d => {
+    const p = d.params;
+    const st = Lib.computeStats(p);
+    const taper = p.rootChordMM ? p.tipChordMM / p.rootChordMM : 0;
+    return `"${d.name}" | ${d.styleTag} | ${d.controlConfigTag || p.tailType} | span ${p.wingspanMM}mm | AR ${st.ar.toFixed(2)} | taper ${taper.toFixed(2)} | sweep ${p.sweepMM}mm | fuselage ${p.fuselageLengthMM}mm | CG ${p.cgPercentMAC}% | tail volume ${st.tailVolume.toFixed(2)} | loading ${st.wingLoading.toFixed(1)}g/dm²`;
+  });
+}
+
+function normalizedName(name) {
+  return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function designDistance(a, b) {
+  const ap = a.params, bp = b.params;
+  const as = Lib.computeStats(ap), bs = Lib.computeStats(bp);
+  const rel = (x, y, floor = 1) => Math.abs(x - y) / Math.max(floor, Math.abs(x), Math.abs(y));
+  const sameStyle = String(a.styleTag || '').toUpperCase() === String(b.styleTag || '').toUpperCase();
+  const sameControl = String(a.controlConfigTag || ap.tailType || '') === String(b.controlConfigTag || bp.tailType || '');
+  const at = ap.tipChordMM / Math.max(1, ap.rootChordMM);
+  const bt = bp.tipChordMM / Math.max(1, bp.rootChordMM);
+  const metrics = [
+    rel(ap.wingspanMM, bp.wingspanMM, 100),
+    rel(as.ar, bs.ar, 1),
+    rel(at, bt, 0.1),
+    rel(ap.sweepMM, bp.sweepMM, 25),
+    rel(ap.fuselageLengthMM, bp.fuselageLengthMM, 100),
+    Math.abs(ap.cgPercentMAC - bp.cgPercentMAC) / 10,
+    rel(as.tailVolume, bs.tailVolume, 0.1),
+    rel(as.wingLoading, bs.wingLoading, 5),
+  ];
+  const geometryDistance = metrics.reduce((sum, n) => sum + Math.min(1, n), 0) / metrics.length;
+  const categoryPenalty = (sameStyle ? 0 : 0.22) + (sameControl ? 0 : 0.22);
+  return geometryDistance + categoryPenalty;
+}
+
+function findDuplicate(candidate) {
+  const candidateName = normalizedName(candidate.name);
+  let closest = null;
+  for (const existing of state.designs) {
+    const exactName = candidateName && candidateName === normalizedName(existing.name);
+    const distance = designDistance(candidate, existing);
+    if (exactName || distance < 0.115) {
+      if (!closest || exactName || distance < closest.distance) closest = { existing, distance, exactName };
+    }
+  }
+  return closest;
+}
+
+function duplicateFeedback(match) {
+  const d = match.existing;
+  const st = Lib.computeStats(d.params);
+  return `Too similar to "${d.name}" (${d.styleTag}, ${d.controlConfigTag || d.params.tailType}, span ${d.params.wingspanMM}mm, AR ${st.ar.toFixed(2)}, sweep ${d.params.sweepMM}mm, CG ${d.params.cgPercentMAC}%). Use a new callsign and materially change at least three of: aspect ratio, taper, sweep, fuselage proportion, target wing loading, CG position, or tail volume. Do not leave the validated safety bands.`;
+}
+
 const GEN_LINES = [
   '> SIZING WING PLANFORM…',
   '> CHECKING WING LOADING ENVELOPE…',
@@ -300,9 +355,27 @@ async function onGenerate() {
 
   try {
     const formWithKnowledge = { ...state.form, knowledge: knowledge.parsed };
-    const { system, messages } = Lib.buildPrompt(formWithKnowledge, memory, knowledge.text);
-    const text = await llmComplete(system, messages);
-    const parsed = Lib.parseDesign(text, formWithKnowledge, knowledge.parsed);
+    const hangarInventory = buildHangarInventory();
+    let parsed = null;
+    let noveltyFeedback = '';
+    const maxAttempts = 3;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      if (attempt > 1) {
+        state.log.push(`> NOVELTY RETRY ${attempt}/${maxAttempts} — REDESIGNING…`);
+        renderLogLines();
+      }
+      const { system, messages } = Lib.buildPrompt(formWithKnowledge, memory, knowledge.text, hangarInventory, noveltyFeedback);
+      const text = await llmComplete(system, messages);
+      parsed = Lib.parseDesign(text, formWithKnowledge, knowledge.parsed);
+      const duplicate = findDuplicate(parsed);
+      if (!duplicate) break;
+      noveltyFeedback = duplicateFeedback(duplicate);
+      parsed = null;
+      if (attempt === maxAttempts) {
+        throw new Error('The model produced a near-duplicate after three attempts. Closest existing aircraft: ' + duplicate.existing.name + '. Adjust the mission parameters or pilot notes to request a more distinct design.');
+      }
+    }
     // sanity assertion: the generated tail must match the requested control configuration
     const ccWanted = knowledge.parsed.designRules.controlConfigurations[state.form.controlConfig];
     if (ccWanted) {

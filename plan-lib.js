@@ -310,7 +310,7 @@ const SEED_DESIGNS = [
    never have been attempted (app.js enforces this before calling
    buildPrompt at all).
    ============================================================ */
-function buildPrompt(form, memory, knowledgeText) {
+function buildPrompt(form, memory, knowledgeText, hangarInventory, noveltyFeedback) {
   let system = `You are a senior aerospace engineer specializing in RC foam-board aircraft (radio-controlled models cut from flat foam board, powered by a brushless motor and hobby servos — NOT paper airplanes).
 
 You are NOT a creative writer. You are NOT producing concept art. You are designing aircraft that should realistically fly. Every dimension must be chosen using the design bands and equations supplied below, not guesses. Your job is to produce a conservative, stable aircraft that an experienced RC builder could reasonably expect to trim and fly.
@@ -331,17 +331,32 @@ OUTPUT — respond with ONLY a single valid JSON object. No markdown. No explana
 {"name": "two-word callsign + short designation, e.g. 'Harrier SK-7'",
 "description": "1–2 sentences on character and mission",
 "rootChordMM": n, "tipChordMM": n, "sweepMM": n,
+"targetWingLoadingGPerDM2": n, "tailVolumeCoefficient": n,
 "fuselageLengthMM": n, "noseLengthMM": n, "fuselageHeightMM": n,
 "hStabSpanMM": n, "hStabChordMM": n, "vStabHeightMM": n, "vStabChordMM": n,
 "cgPercentMAC": n, "weightG": n,
 "notes": ["4–6 short build & flight notes specific to this design"]}
-All dimensions integers in mm.`;
+All dimensions integers in mm. tailVolumeCoefficient is the coefficient multiplied by 100 (for example, return 50 for 0.50).`;
 
   if (memory && memory.length) {
     system += `
 
 CALIBRATION — real flight reports from this pilot's previous builds. Learn from them: if reports say nose-heavy, place CG slightly further aft or flag battery position; tail-heavy → CG forward; stalled/crashed → lower wing loading or bigger tail; too fast → more area or less sweep. Reports:
 ${memory.map(m => '- ' + m).join('\n')}`;
+  }
+
+  if (hangarInventory && hangarInventory.length) {
+    system += `
+
+HANGAR INVENTORY — these aircraft already exist. You MUST compare the new design against every item below before answering. Do not reuse a name, designation, or nearly identical geometry. A new aircraft is considered a duplicate when it has the same style/control layout and closely similar span, aspect ratio, taper, sweep, fuselage proportion, CG, and tail volume. Create a materially different but still conservative solution within the mandatory safety bands.
+${hangarInventory.map(m => '- ' + m).join('\n')}`;
+  }
+
+  if (noveltyFeedback) {
+    system += `
+
+REJECTED CANDIDATE FEEDBACK — the previous candidate was too similar to an existing hangar aircraft. Correct this explicitly while staying inside all mandatory engineering bands:
+${noveltyFeedback}`;
   }
 
   const knowledge = form.knowledge; // parsed JSON, attached by app.js
@@ -384,13 +399,16 @@ function parseDesign(text, form, knowledge) {
 
   const wingspanMM = clampInt(form.wingspan, val.wingspanMM[0], val.wingspanMM[1], 900);
 
-  // --- wing: keep the model's taper preference, but derive absolute
-  // chords from the style's aspect-ratio band so AR always lands mid-band ---
-  const modelRoot = Number(j.rootChordMM) || wingspanMM / 6;
-  const modelTip = Number(j.tipChordMM) || modelRoot * 0.65;
+  // --- wing: preserve the model's proposed planform variation, but clamp
+  // both taper and aspect ratio into the style's proven-safe bands. This avoids
+  // collapsing every aircraft of the same style/span into the same midpoint geometry.
+  const modelRoot = Number(j.rootChordMM) || wingspanMM / mid(spec.aspectRatio);
+  const modelTip = Number(j.tipChordMM) || modelRoot * rules.taperRatio.default;
   const taper = clamp(modelTip / Math.max(1, modelRoot), rules.taperRatio.min, rules.taperRatio.max, rules.taperRatio.default);
-  const arMid = mid(spec.aspectRatio);
-  const avgChord = wingspanMM / arMid;
+  const proposedAreaMM2 = ((modelRoot + modelTip) / 2) * wingspanMM;
+  const proposedAR = proposedAreaMM2 > 0 ? (wingspanMM * wingspanMM) / proposedAreaMM2 : mid(spec.aspectRatio);
+  const targetAR = clamp(proposedAR, spec.aspectRatio[0], spec.aspectRatio[1], mid(spec.aspectRatio));
+  const avgChord = wingspanMM / targetAR;
   const rootChordMM = Math.max(val.minRootChordMM, Math.round((2 * avgChord) / (1 + taper)));
   const tipChordMM = Math.max(val.minTipChordMM, Math.round(taper * rootChordMM));
 
@@ -403,8 +421,14 @@ function parseDesign(text, form, knowledge) {
   const macTaper = tipChordMM / rootChordMM;
   const mac = rootChordMM * (2 / 3) * ((1 + macTaper + macTaper * macTaper) / (1 + macTaper));
 
-  // --- weight: computed from wing area + style wing loading, not requested ---
-  const weightG = Math.max(val.minWeightG, Math.round(areaDM2 * mid(spec.wingLoadingGPerDM2)));
+  // --- weight: use a model-selected target loading, constrained to the style band ---
+  const targetWingLoading = clamp(
+    j.targetWingLoadingGPerDM2,
+    spec.wingLoadingGPerDM2[0],
+    spec.wingLoadingGPerDM2[1],
+    mid(spec.wingLoadingGPerDM2)
+  );
+  const weightG = Math.max(val.minWeightG, Math.round(areaDM2 * targetWingLoading));
 
   // --- CG: clamp into style band ---
   const cgPercentMAC = clampInt(j.cgPercentMAC, spec.cgPercentMAC[0], spec.cgPercentMAC[1], mid(spec.cgPercentMAC));
@@ -431,7 +455,13 @@ function parseDesign(text, form, knowledge) {
   let hStabSpanMM = 0, hStabChordMM = 0;
   if (cc.hasHorizontalStab) {
     const lh = Math.max(1, fuselageLengthMM - noseLengthMM);
-    const shArea = (spec.tailVolumeCoefficient * areaMM2 * mac) / lh;
+    const requestedTailVolume = clamp(
+      Number(j.tailVolumeCoefficient) / 100,
+      spec.tailVolumeCoefficient * 0.9,
+      spec.tailVolumeCoefficient * 1.1,
+      spec.tailVolumeCoefficient
+    );
+    const shArea = (requestedTailVolume * areaMM2 * mac) / lh;
     const hStabAR = rules.horizontalStabAspectRatio;
     hStabSpanMM = Math.max(val.minHStabSpanMM, Math.round(Math.sqrt(shArea * hStabAR)));
     hStabChordMM = Math.max(45, Math.round(shArea / hStabSpanMM));
@@ -492,6 +522,6 @@ const PRINT_COLORS = { bg: '#FFFFFF', line: '#1E3A5F', dim: '#5A6B80', accent: '
 
 window.PlanLib = {
   computeStats, buildPlanSVG, SEED_DESIGNS, buildPrompt, parseDesign, THEMES, PRINT_COLORS,
-  VERSION: 5
+  VERSION: 6
 };
 })();

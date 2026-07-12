@@ -16,10 +16,10 @@ Files, all human-editable:
 
 1. Go to dash.cloudflare.com → Workers & Pages → Create Worker.
 2. Paste the contents of `worker.js`, deploy.
-3. In the worker's Settings → Variables, add a **secret** named `ANTHROPIC_API_KEY` (or `OPENAI_API_KEY`).
+3. In the worker's Settings → Variables, add a **secret** named `OPENAI_API_KEY`.
 4. Copy the worker URL into `CONFIG.API_PROXY_URL` at the top of `index.html`.
 
-Visitors never see the key — it lives only on the worker.
+Visitors never see the key — it lives only on the worker. The worker defaults to `gpt-5.6`; optionally set `OPENAI_MODEL` or `OPENAI_REASONING_EFFORT` in Cloudflare Worker variables.
 
 ## 2. Shared cloud gallery via Supabase (optional)
 
@@ -48,3 +48,10 @@ built-in defaults.
 Upload `index.html`, `styles.css`, `app.js`, `plan-lib.js`, and the whole
 `knowledge/` folder to any static host or FTP (`worker.js` is NOT uploaded
 — it lives on Cloudflare). Done.
+
+
+## Generation quality and duplicate prevention
+
+Before each request, the browser sends GPT-5.6 a compact inventory of the current hangar, including the seed aircraft, local designs, and loaded cloud designs. After generation, the browser computes a geometry-distance score against every existing aircraft. Near-duplicates are rejected and regenerated up to three times with explicit feedback about the closest existing design.
+
+The validation layer preserves safe model-selected variation in aspect ratio, taper, wing loading, sweep, CG, fuselage proportion, and tail volume rather than forcing every aircraft to the midpoint of a style band. All values remain clamped to the editable rules in `knowledge/`.
