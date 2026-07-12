@@ -272,34 +272,10 @@ function buildPlanSVG(p, c, opts) {
    These are static examples, not affected by /knowledge/.
    ============================================================ */
 const SEED_DESIGNS = [
-  {
-    id: 'seed-1', seed: true,
-    name: 'Pelican TR-1', styleTag: 'TRAINER', controlConfigTag: 'Ailerons + Elevator',
-    description: 'A forgiving high-wing RC trainer with a flat-bottom section and gentle stall. First-flight friendly.',
-    notes: ['Cut wing as one piece; score the spar line and glue in a 5 mm carbon tube.', 'Bevel all hinge lines 45° and reinforce with tape.', 'Mount motor with 2° right and 2° down thrust.', 'Balance at the CG mark before the first flight — nose-heavy flies, tail-heavy dies.', 'Set aileron throws to ±12 mm, elevator ±10 mm for the maiden.'],
-    params: { name: 'Pelican TR-1', wingspanMM: 900, rootChordMM: 220, tipChordMM: 170, sweepMM: 15, fuselageLengthMM: 640, noseLengthMM: 140, fuselageHeightMM: 72, hStabSpanMM: 330, hStabChordMM: 110, vStabHeightMM: 145, vStabChordMM: 125, cgPercentMAC: 28, weightG: 430, motor: '2212 · 1000KV', servoCount: 4, foam: '5 mm foam board', tailType: 'conventional', hasRudder: false }
-  },
-  {
-    id: 'seed-2', seed: true,
-    name: 'Dart XP-2', styleTag: 'EXPERIMENTAL', controlConfigTag: 'Elevons only',
-    description: 'A fast, compact RC flying wing for FPV or park slashing. Two servos, one battery, zero tail.',
-    notes: ['Elevons need 30–40% expo — wings are twitchy in pitch.', 'CG is critical: 22% MAC, verify with fingertips at the marks.', 'Add winglets from scrap foam at the tips for yaw stability.', 'Launch with a firm javelin throw at half throttle.'],
-    params: { name: 'Dart XP-2', wingspanMM: 800, rootChordMM: 300, tipChordMM: 130, sweepMM: 150, fuselageLengthMM: 280, noseLengthMM: 90, fuselageHeightMM: 60, hStabSpanMM: 0, hStabChordMM: 0, vStabHeightMM: 120, vStabChordMM: 105, cgPercentMAC: 22, weightG: 360, motor: '2205 · 2300KV', servoCount: 2, foam: '5 mm foam board', tailType: 'flyingwing', hasRudder: false }
-  },
-  {
-    id: 'seed-3', seed: true,
-    name: 'Kestrel SP-3', styleTag: 'SPORT', controlConfigTag: 'Ailerons + Elevator + Rudder',
-    description: 'A mid-wing RC sport model that rolls on rails. Comfortable with loops, rolls, and inverted passes.',
-    notes: ['Use a full-span carbon spar — sport loads flex 5 mm foam.', 'Set control throws high/low rates; start on low.', 'Reinforce the firewall with plywood or doubled foam.', 'CG at 30% MAC for neutral handling; move to 32% once trimmed.'],
-    params: { name: 'Kestrel SP-3', wingspanMM: 780, rootChordMM: 190, tipChordMM: 150, sweepMM: 30, fuselageLengthMM: 660, noseLengthMM: 125, fuselageHeightMM: 68, hStabSpanMM: 300, hStabChordMM: 100, vStabHeightMM: 150, vStabChordMM: 115, cgPercentMAC: 30, weightG: 480, motor: '2212 · 1400KV', servoCount: 5, foam: '5 mm foam board', tailType: 'full', hasRudder: true }
-  },
-  {
-    id: 'seed-4', seed: true,
-    name: 'Mustang WB-4', styleTag: 'WARBIRD', controlConfigTag: 'Ailerons + Elevator + Rudder',
-    description: 'A scale-inspired RC warbird with a tapered wing and full tail for authentic low passes.',
-    notes: ['Round over the wingtip foam by sanding — closest low-effort approximation to a real scale tip.', 'Nose-heavy is normal on scale warbirds; verify CG before the maiden.', 'Full tail gives crosswind authority on grass strips.', 'Keep it light — scale fuselages add drag.'],
-    params: { name: 'Mustang WB-4', wingspanMM: 950, rootChordMM: 205, tipChordMM: 130, sweepMM: 45, fuselageLengthMM: 720, noseLengthMM: 155, fuselageHeightMM: 78, hStabSpanMM: 340, hStabChordMM: 108, vStabHeightMM: 150, vStabChordMM: 118, cgPercentMAC: 29, weightG: 540, motor: '2212 · 1000KV', servoCount: 5, foam: '5 mm foam board', tailType: 'full', hasRudder: true }
-  }
+  { id:'seed-trainer', seed:true, name:'Pelican TR-2', styleTag:'TRAINER', controlConfigTag:'Ailerons + Elevator + Rudder', description:'A stable high-wing trainer with a broad constant-chord center section, rounded tips, and a long tail moment.', notes:['Build the high wing with mild dihedral.','Keep the battery movable through the marked CG range.'], params:{name:'Pelican TR-2',architecture:'trainer-high-wing',wingspanMM:1000,rootChordMM:220,tipChordMM:180,sweepMM:8,fuselageLengthMM:720,noseLengthMM:145,fuselageHeightMM:78,hStabSpanMM:360,hStabChordMM:110,vStabHeightMM:155,vStabChordMM:125,cgPercentMAC:28,weightG:520,motor:'2212 · 1000KV',motorBattery:'3S',motorProp:'10x4.5',servoCount:5,foam:'5 mm foam board',tailType:'full',hasRudder:true,wingPanelLimitMM:800}},
+  { id:'seed-fighter', seed:true, name:'Iron Midge IF-9', styleTag:'FIGHTER', controlConfigTag:'Elevons only', description:'A compact delta fighter with a deep center chord, clipped tips, twin fins, and elevon control.', notes:['Use twin carbon spars across the center section.','Start at the forward CG mark.'], params:{name:'Iron Midge IF-9',architecture:'fighter-delta',wingspanMM:680,rootChordMM:360,tipChordMM:95,sweepMM:205,fuselageLengthMM:430,noseLengthMM:125,fuselageHeightMM:66,hStabSpanMM:0,hStabChordMM:0,vStabHeightMM:118,vStabChordMM:95,cgPercentMAC:24,weightG:430,motor:'2205 · 2300KV',motorBattery:'3S',motorProp:'6x4',servoCount:2,foam:'5 mm foam board',tailType:'flyingwing',hasRudder:false,wingPanelLimitMM:800}},
+  { id:'seed-experimental', seed:true, name:'XW-2 Kestrel', styleTag:'EXPERIMENTAL', controlConfigTag:'Elevons only', description:'A blended flying wing with a central equipment pod, moderate sweep, twin vertical fins, and detachable wing panels.', notes:['Dry-fit both wing panels to the center pod before gluing.','Keep the battery tray adjustable around the CG.'], params:{name:'XW-2 Kestrel',architecture:'experimental-flying-wing',wingspanMM:762,rootChordMM:310,tipChordMM:120,sweepMM:150,fuselageLengthMM:395,noseLengthMM:115,fuselageHeightMM:72,hStabSpanMM:0,hStabChordMM:0,vStabHeightMM:135,vStabChordMM:105,cgPercentMAC:26,weightG:580,motor:'2205 · 2300KV',motorBattery:'3S',motorProp:'7x4',servoCount:2,foam:'5 mm foam board',tailType:'flyingwing',hasRudder:false,wingPanelLimitMM:800}},
+  { id:'seed-warbird', seed:true, name:'Mustang WB-5', styleTag:'WARBIRD', controlConfigTag:'Ailerons + Elevator + Rudder', description:'A scale-inspired low-wing warbird with an elliptical planform, narrow fuselage, and conventional full tail.', notes:['Reinforce the firewall with plywood.','Use low rates for the first flight.'], params:{name:'Mustang WB-5',architecture:'warbird-elliptical',wingspanMM:950,rootChordMM:210,tipChordMM:105,sweepMM:42,fuselageLengthMM:760,noseLengthMM:175,fuselageHeightMM:82,hStabSpanMM:330,hStabChordMM:105,vStabHeightMM:155,vStabChordMM:118,cgPercentMAC:29,weightG:610,motor:'2212 · 1400KV',motorBattery:'3S',motorProp:'9x6',servoCount:5,foam:'5 mm foam board',tailType:'full',hasRudder:true,wingPanelLimitMM:800}}
 ];
 
 /* ============================================================
@@ -535,7 +511,8 @@ function parseDesign(text, form, knowledge) {
     cgPercentMAC, weightG,
     motor: motorSpec.label, motorBattery: batteryCells, motorProp: propeller, motorReason: motorSpec.notes || '', servoCount: cc.servoCount, foam: form.foam,
     tailType: cc.tailType, hasRudder: cc.hasRudder,
-    wingPanelLimitMM: rules.wingPanelLimitMM
+    wingPanelLimitMM: rules.wingPanelLimitMM,
+    architecture: form.style === 'Trainer' ? 'trainer-high-wing' : form.style === 'Warbird' ? 'warbird-elliptical' : form.style === 'Fighter' ? (cc.tailType === 'flyingwing' ? 'fighter-delta' : 'fighter-swept') : 'experimental-flying-wing'
   };
 
   const notes = Array.isArray(j.notes) ? j.notes.map(n => String(n)).slice(0, 6) : [];
@@ -604,7 +581,74 @@ function buildDesignDossierSVG(p, c) {
   const ready=buildReadyViewSVG(p,c).replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');
   let specs=[['WINGSPAN',p.wingspanMM+' mm'],['LENGTH',p.fuselageLengthMM+' mm'],['FLYING WEIGHT',p.weightG+' g'],['MOTOR',p.motor],['BATTERY',p.motorBattery||'—'],['PROPELLER',p.motorProp||'—'],['SERVOS',p.servoCount+' × 9g'],['CG',p.cgPercentMAC+'% MAC'],['WING LOADING',num(st.wingLoading)+' g/dm²'],['MATERIAL',p.foam]];
   let specRows=specs.map((r,i)=>txt(48,285+i*34,r[0]+':',16,'start','600',line)+txt(235,285+i*34,r[1],16,'start','400',dim)).join('');
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" style="display:block"><rect width="${W}" height="${H}" fill="${bg}"/><rect x="18" y="18" width="1564" height="964" rx="12" fill="none" stroke="${dim}" stroke-width="1" opacity=".7"/>${txt(35,72,(p.name||'AIRFRAME').toUpperCase(),54,'start','700',line)}${txt(38,108,(isWing?'EXPERIMENTAL RC FLYING WING':isV?'RC V-TAIL AIRFRAME':'RC FOAM AIRFRAME')+' · RTFOAM',20,'start','500',dim)}<path d="M35 128H405" stroke="${line}" stroke-width="2"/>${txt(35,170,'A coherent parametric build package with solved stability,',17,'start','400',dim)}${txt(35,196,'recommended power system, assembly geometry, and CG.',17,'start','400',dim)}<rect x="30" y="225" width="380" height="390" rx="10" fill="none" stroke="${dim}" opacity=".7"/>${txt(45,260,'SPECIFICATIONS (RECOMMENDED)',18,'start','700',line)}${specRows}<rect x="430" y="25" width="1145" height="590" rx="10" fill="none" stroke="${dim}" opacity=".7"/><rect x="430" y="25" width="190" height="42" rx="8" fill="${line}"/>${txt(450,54,'EXPLODED VIEW',18,'start','700',bg)}${exploded}${leader(650,150,830,260)}${txt(625,138,'LEFT WING PANEL',16,'start','600',line)}${leader(1390,150,1210,260)}${txt(1410,138,'RIGHT WING PANEL',16,'end','600',line)}${leader(1130,120,1050,250)}${txt(1135,108,'CENTER POD / BATTERY BAY',16,'start','600',line)}${leader(560,520,700,600)}${txt(520,510,'SPAR STRIP',16,'start','600',line)}${leader(1460,520,1340,600)}${txt(1480,510,'SPAR STRIP',16,'end','600',line)}<rect x="30" y="635" width="1545" height="320" rx="10" fill="none" stroke="${dim}" opacity=".7"/><rect x="30" y="635" width="145" height="42" rx="8" fill="${line}"/>${txt(50,664,'READY VIEW',18,'start','700',bg)}<svg x="220" y="660" width="1050" height="270" viewBox="0 0 900 330">${ready}</svg>${txt(45,720,'ASSEMBLY PRIORITIES',18,'start','700',line)}${txt(45,755,'1  Cut mirrored panels accurately.',15,'start','400',dim)}${txt(45,785,'2  Install spars before closing folds.',15,'start','400',dim)}${txt(45,815,'3  Keep battery adjustable around CG.',15,'start','400',dim)}${txt(45,845,'4  Verify control direction and range.',15,'start','400',dim)}${txt(45,875,'5  Glide-test before powered flight.',15,'start','400',dim)}${txt(1545,935,'RTFOAM · BUILD DOSSIER · V8',13,'end','500',dim)}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" style="display:block"><rect width="${W}" height="${H}" fill="${bg}"/><rect x="18" y="18" width="1564" height="964" rx="12" fill="none" stroke="${dim}" stroke-width="1" opacity=".7"/>${txt(35,72,(p.name||'AIRFRAME').toUpperCase(),54,'start','700',line)}${txt(38,108,(isWing?'EXPERIMENTAL RC FLYING WING':isV?'RC V-TAIL AIRFRAME':'RC FOAM AIRFRAME')+' · RTFOAM',20,'start','500',dim)}<path d="M35 128H405" stroke="${line}" stroke-width="2"/>${txt(35,170,'A coherent parametric build package with solved stability,',17,'start','400',dim)}${txt(35,196,'recommended power system, assembly geometry, and CG.',17,'start','400',dim)}<rect x="30" y="225" width="380" height="390" rx="10" fill="none" stroke="${dim}" opacity=".7"/>${txt(45,260,'SPECIFICATIONS (RECOMMENDED)',18,'start','700',line)}${specRows}<rect x="430" y="25" width="1145" height="590" rx="10" fill="none" stroke="${dim}" opacity=".7"/><rect x="430" y="25" width="190" height="42" rx="8" fill="${line}"/>${txt(450,54,'EXPLODED VIEW',18,'start','700',bg)}${exploded}${leader(650,150,830,260)}${txt(625,138,'LEFT WING PANEL',16,'start','600',line)}${leader(1390,150,1210,260)}${txt(1410,138,'RIGHT WING PANEL',16,'end','600',line)}${leader(1130,120,1050,250)}${txt(1135,108,'CENTER POD / BATTERY BAY',16,'start','600',line)}${leader(560,520,700,600)}${txt(520,510,'SPAR STRIP',16,'start','600',line)}${leader(1460,520,1340,600)}${txt(1480,510,'SPAR STRIP',16,'end','600',line)}<rect x="30" y="635" width="1545" height="320" rx="10" fill="none" stroke="${dim}" opacity=".7"/><rect x="30" y="635" width="145" height="42" rx="8" fill="${line}"/>${txt(50,664,'READY VIEW',18,'start','700',bg)}<svg x="220" y="660" width="1050" height="270" viewBox="0 0 900 330">${ready}</svg>${txt(45,720,'ASSEMBLY PRIORITIES',18,'start','700',line)}${txt(45,755,'1  Cut mirrored panels accurately.',15,'start','400',dim)}${txt(45,785,'2  Install spars before closing folds.',15,'start','400',dim)}${txt(45,815,'3  Keep battery adjustable around CG.',15,'start','400',dim)}${txt(45,845,'4  Verify control direction and range.',15,'start','400',dim)}${txt(45,875,'5  Glide-test before powered flight.',15,'start','400',dim)}${txt(1545,935,'RTFOAM · BUILD DOSSIER · V9',13,'end','500',dim)}</svg>`;
+}
+
+
+/* ============================================================
+   V9 ARCHITECTURE RENDERER
+   Four deterministic aircraft families with distinct geometry.
+   ============================================================ */
+function architectureOf(p){
+  if(p.architecture) return p.architecture;
+  if(p.tailType==='flyingwing') return p.sweepMM>180?'fighter-delta':'experimental-flying-wing';
+  const n=(p.name||'').toLowerCase();
+  if(n.includes('mustang')||n.includes('warbird')) return 'warbird-elliptical';
+  return 'trainer-high-wing';
+}
+function svgText(x,y,t,size,fill,anchor,weight){return `<text x="${num(x)}" y="${num(y)}" font-family="${F}" font-size="${size||14}" fill="${fill}" text-anchor="${anchor||'start'}" font-weight="${weight||400}">${esc(t)}</text>`}
+function archTopGeometry(p,W,H){
+  const a=architectureOf(p), cx=W/2, cy=H*.40, span=Math.min(W*.78,p.wingspanMM*.62), half=span/2;
+  const root=Math.min(H*.42,p.rootChordMM*.55), tip=Math.max(36,p.tipChordMM*.48), sweep=Math.min(root*.82,p.sweepMM*.48);
+  let wing='';
+  if(a==='trainer-high-wing'){
+    const r=18; wing=`M ${cx-half+r} ${cy+sweep} Q ${cx-half} ${cy+sweep} ${cx-half} ${cy+sweep+r} L ${cx-half} ${cy+sweep+tip-r} Q ${cx-half} ${cy+sweep+tip} ${cx-half+r} ${cy+sweep+tip} L ${cx-root*.12} ${cy+root} L ${cx+root*.12} ${cy+root} L ${cx+half-r} ${cy+sweep+tip} Q ${cx+half} ${cy+sweep+tip} ${cx+half} ${cy+sweep+tip-r} L ${cx+half} ${cy+sweep+r} Q ${cx+half} ${cy+sweep} ${cx+half-r} ${cy+sweep} L ${cx+root*.10} ${cy} L ${cx-root*.10} ${cy} Z`;
+  } else if(a==='warbird-elliptical'){
+    wing=`M ${cx} ${cy} C ${cx-half*.35} ${cy+sweep*.15}, ${cx-half*.78} ${cy+sweep*.55}, ${cx-half} ${cy+sweep+tip*.45} C ${cx-half*.95} ${cy+sweep+tip}, ${cx-half*.45} ${cy+root*.98}, ${cx} ${cy+root} C ${cx+half*.45} ${cy+root*.98}, ${cx+half*.95} ${cy+sweep+tip}, ${cx+half} ${cy+sweep+tip*.45} C ${cx+half*.78} ${cy+sweep*.55}, ${cx+half*.35} ${cy+sweep*.15}, ${cx} ${cy} Z`;
+  } else if(a==='fighter-delta'){
+    wing=`M ${cx} ${cy} L ${cx-half} ${cy+sweep+tip*.15} L ${cx-half*.82} ${cy+sweep+tip} L ${cx} ${cy+root} L ${cx+half*.82} ${cy+sweep+tip} L ${cx+half} ${cy+sweep+tip*.15} Z`;
+  } else {
+    wing=`M ${cx} ${cy} L ${cx-half} ${cy+sweep} Q ${cx-half*1.02} ${cy+sweep+tip*.55} ${cx-half*.88} ${cy+sweep+tip} L ${cx} ${cy+root} L ${cx+half*.88} ${cy+sweep+tip} Q ${cx+half*1.02} ${cy+sweep+tip*.55} ${cx+half} ${cy+sweep} Z`;
+  }
+  const fusL=Math.min(H*.62,p.fuselageLengthMM*.38), fusW=Math.max(25,p.fuselageHeightMM*.34), noseY=cy-root*.18;
+  let fus=`M ${cx} ${noseY-fusL*.18} Q ${cx+fusW*.55} ${noseY-fusL*.08} ${cx+fusW*.52} ${noseY+fusL*.35} L ${cx+fusW*.28} ${noseY+fusL} L ${cx-fusW*.28} ${noseY+fusL} L ${cx-fusW*.52} ${noseY+fusL*.35} Q ${cx-fusW*.55} ${noseY-fusL*.08} ${cx} ${noseY-fusL*.18} Z`;
+  if(a.includes('flying-wing')||a==='fighter-delta') fus=`M ${cx} ${cy-root*.18} Q ${cx+fusW*.65} ${cy-root*.04} ${cx+fusW*.72} ${cy+root*.58} L ${cx} ${cy+root*.88} L ${cx-fusW*.72} ${cy+root*.58} Q ${cx-fusW*.65} ${cy-root*.04} ${cx} ${cy-root*.18} Z`;
+  return {a,cx,cy,half,root,tip,sweep,wing,fus,fusL,fusW,noseY};
+}
+function buildReadyViewSVG(p,c){
+  const W=900,H=360,g=archTopGeometry(p,W,H),st=computeStats(p), ac=c.accent, line=c.line, dim=c.dim;
+  let tails='';
+  if(g.a==='trainer-high-wing'||g.a==='warbird-elliptical'){
+    const hs=Math.min(210,p.hStabSpanMM*.42), hy=g.noseY+g.fusL*.88;
+    tails+=`<path d="M ${g.cx-hs} ${hy+28} Q ${g.cx-hs} ${hy+8} ${g.cx-hs+20} ${hy+6} L ${g.cx} ${hy} L ${g.cx+hs-20} ${hy+6} Q ${g.cx+hs} ${hy+8} ${g.cx+hs} ${hy+28} L ${g.cx} ${hy+42} Z" fill="${ac}" fill-opacity=".10" stroke="${line}" stroke-width="2"/>`;
+    tails+=`<path d="M ${g.cx} ${hy-5} Q ${g.cx+42} ${hy+18} ${g.cx+25} ${hy+90} L ${g.cx} ${hy+75} Z" fill="${ac}" fill-opacity=".18" stroke="${line}" stroke-width="2"/>`;
+  } else {
+    const fy=g.cy+g.sweep+g.tip*.35, off=g.half*.62;
+    tails+=`<path d="M ${g.cx-off} ${fy} l -18 -70 q 28 -18 50 4 l 8 76 z M ${g.cx+off} ${fy} l 18 -70 q -28 -18 -50 4 l -8 76 z" fill="${ac}" fill-opacity=".18" stroke="${line}" stroke-width="2"/>`;
+  }
+  const cgY=g.cy+st.cgFromRootLE*Math.min(.55,620/p.wingspanMM);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%"><rect width="${W}" height="${H}" fill="${c.bg}"/><path d="${g.wing}" fill="${ac}" fill-opacity=".10" stroke="${line}" stroke-width="3"/>${tails}<path d="${g.fus}" fill="${c.bg}" stroke="${line}" stroke-width="3"/><path d="M ${g.cx-g.half*.8} ${g.cy+g.sweep+g.tip*.68} L ${g.cx-g.root*.1} ${g.cy+g.root*.72} M ${g.cx+g.root*.1} ${g.cy+g.root*.72} L ${g.cx+g.half*.8} ${g.cy+g.sweep+g.tip*.68}" stroke="${dim}" stroke-width="2" stroke-dasharray="9 7"/><circle cx="${g.cx}" cy="${cgY}" r="8" fill="none" stroke="${ac}" stroke-width="2"/><path d="M${g.cx-13} ${cgY}H${g.cx+13}M${g.cx} ${cgY-13}V${cgY+13}" stroke="${ac}" stroke-width="2"/>${svgText(24,35,(p.name||'AIRCRAFT').toUpperCase(),18,line,'start',600)}${svgText(876,35,architectureOf(p).replaceAll('-',' ').toUpperCase(),12,dim,'end',500)}</svg>`;
+}
+function buildPerspectiveViewSVG(p,c){
+  const W=900,H=360,g=archTopGeometry(p,W,H), line=c.line, ac=c.accent, dim=c.dim;
+  const top=buildReadyViewSVG(p,c).replace(/^<svg[^>]*>/,'').replace(/<rect[^>]*\/>/,'').replace(/<\/svg>$/,'');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%"><rect width="${W}" height="${H}" fill="${c.bg}"/><g transform="translate(55,-8) skewX(-12) scale(.88,.72)">${top}</g><path d="M180 292 Q450 335 720 292" fill="none" stroke="${dim}" opacity=".35"/><ellipse cx="450" cy="300" rx="255" ry="22" fill="#000" opacity=".15"/>${svgText(24,35,(p.name||'AIRCRAFT').toUpperCase(),18,line,'start',600)}${svgText(876,35,'PERSPECTIVE ASSEMBLED VIEW',12,dim,'end',500)}</svg>`;
+}
+function buildExplodedPreviewSVG(p,c){
+  const W=900,H=360,g=archTopGeometry(p,W,H), line=c.line, ac=c.accent, dim=c.dim;
+  const left=`M ${g.cx-45} ${g.cy} L ${g.cx-g.half} ${g.cy+g.sweep} L ${g.cx-g.half*.88} ${g.cy+g.sweep+g.tip} L ${g.cx-45} ${g.cy+g.root} Z`;
+  const right=`M ${g.cx+45} ${g.cy} L ${g.cx+g.half} ${g.cy+g.sweep} L ${g.cx+g.half*.88} ${g.cy+g.sweep+g.tip} L ${g.cx+45} ${g.cy+g.root} Z`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%"><rect width="${W}" height="${H}" fill="${c.bg}"/><g transform="translate(-38,-8)"><path d="${left}" fill="${ac}" fill-opacity=".10" stroke="${line}" stroke-width="3"/></g><g transform="translate(38,-8)"><path d="${right}" fill="${ac}" fill-opacity=".10" stroke="${line}" stroke-width="3"/></g><g transform="translate(0,38)"><path d="${g.fus}" fill="${c.bg}" stroke="${line}" stroke-width="3"/></g><path d="M${g.cx-48} ${g.cy+20}L${g.cx-10} ${g.cy+62}M${g.cx+48} ${g.cy+20}L${g.cx+10} ${g.cy+62}" stroke="${dim}" stroke-dasharray="7 6"/><rect x="${g.cx-g.half*.72}" y="${g.cy+g.root+70}" width="${g.half*.55}" height="8" rx="4" fill="${line}" opacity=".7"/><rect x="${g.cx+g.half*.17}" y="${g.cy+g.root+70}" width="${g.half*.55}" height="8" rx="4" fill="${line}" opacity=".7"/>${svgText(24,35,(p.name||'AIRCRAFT').toUpperCase(),18,line,'start',600)}${svgText(876,35,'EXPLODED ASSEMBLY',12,dim,'end',500)}</svg>`;
+}
+function buildDesignDossierSVG(p,c){
+  const W=1600,H=1060,line='#202428',dim='#555c63',ac='#9b6b3e',paper='#f7f7f3',st=computeStats(p),arch=architectureOf(p);
+  const top=buildReadyViewSVG(p,{bg:paper,line,dim,accent:ac,grid:'#ddd'}).replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');
+  const exploded=buildExplodedPreviewSVG(p,{bg:paper,line,dim,accent:ac,grid:'#ddd'}).replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');
+  const perspective=buildPerspectiveViewSVG(p,{bg:paper,line,dim,accent:ac,grid:'#ddd'}).replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');
+  const specs=[['Wingspan',p.wingspanMM+' mm'],['Length',p.fuselageLengthMM+' mm'],['Flying weight',p.weightG+' g'],['Motor',p.motor],['Battery',p.motorBattery||'—'],['Propeller',p.motorProp||'—'],['Servos',p.servoCount+' ×'],['CG',p.cgPercentMAC+'% MAC'],['Wing loading',num(st.wingLoading)+' g/dm²'],['Material',p.foam]];
+  const rows=specs.map((r,i)=>`${svgText(42,292+i*30,r[0]+':',15,line,'start',600)}${svgText(205,292+i*30,r[1],15,dim)}`).join('');
+  const call=(x1,y1,x2,y2,label,ax='start')=>`<path d="M${x1} ${y1}L${x2} ${y2}" stroke="${dim}" stroke-width="1.4" stroke-dasharray="7 6"/>${svgText(x1,y1-8,label,15,line,ax,600)}`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%"><rect width="${W}" height="${H}" fill="${paper}"/><rect x="18" y="18" width="1564" height="1024" rx="12" fill="none" stroke="#9a9a94"/><g>${svgText(30,78,(p.name||'AIRCRAFT').toUpperCase(),52,line,'start',700)}${svgText(32,114,arch.replaceAll('-',' ').toUpperCase()+' · FOAM RC AIRCRAFT',19,dim,'start',500)}<path d="M30 132H400" stroke="${line}" stroke-width="2"/>${svgText(32,170,'Validated architecture with build-specific geometry,',17,dim)}${svgText(32,194,'assembly references, power system, and CG.',17,dim)}<rect x="28" y="225" width="380" height="390" rx="9" fill="none" stroke="#999"/>${svgText(42,260,'SPECIFICATIONS (RECOMMENDED)',17,line,'start',700)}${rows}<rect x="430" y="26" width="1142" height="620" rx="10" fill="none" stroke="#999"/><rect x="430" y="26" width="190" height="40" rx="7" fill="${line}"/>${svgText(448,53,'EXPLODED VIEW',17,paper,'start',700)}<svg x="500" y="82" width="1000" height="500" viewBox="0 0 900 360">${exploded}</svg>${call(570,145,770,230,'LEFT WING PANEL')}${call(1425,145,1240,230,'RIGHT WING PANEL','end')}${call(1030,105,1000,235,'CENTER STRUCTURE')}${call(600,560,760,520,'SPAR / JOINER')}${call(1410,560,1260,520,'SPAR / JOINER','end')}<rect x="28" y="665" width="1544" height="350" rx="10" fill="none" stroke="#999"/><rect x="28" y="665" width="145" height="40" rx="7" fill="${line}"/>${svgText(46,692,'READY VIEWS',17,paper,'start',700)}<svg x="360" y="700" width="550" height="245" viewBox="0 0 900 360">${top}</svg><svg x="930" y="700" width="600" height="245" viewBox="0 0 900 360">${perspective}</svg>${svgText(45,750,'ASSEMBLY SEQUENCE',17,line,'start',700)}${svgText(45,785,'1  Cut mirrored parts and verify symmetry.',14,dim)}${svgText(45,815,'2  Install spars and joiners before closing skins.',14,dim)}${svgText(45,845,'3  Dry-fit wings, pod, and tail before adhesive.',14,dim)}${svgText(45,875,'4  Position battery at the marked CG range.',14,dim)}${svgText(45,905,'5  Check throws, direction, and glide trim.',14,dim)}${svgText(1540,1025,'RTFOAM · BUILD DOSSIER · V9',12,dim,'end',500)}</g></svg>`;
 }
 
 const THEMES = {
@@ -625,7 +669,7 @@ const THEMES = {
 const PRINT_COLORS = { bg: '#FFFFFF', line: '#1E3A5F', dim: '#5A6B80', accent: '#C25E2E', grid: 'rgba(30,58,95,0.12)' };
 
 window.PlanLib = {
-  computeStats, buildPlanSVG, buildReadyViewSVG, buildDesignDossierSVG, SEED_DESIGNS, buildPrompt, parseDesign, THEMES, PRINT_COLORS,
-  VERSION: 8
+  computeStats, buildPlanSVG, buildReadyViewSVG, buildPerspectiveViewSVG, buildExplodedPreviewSVG, buildDesignDossierSVG, SEED_DESIGNS, buildPrompt, parseDesign, THEMES, PRINT_COLORS,
+  VERSION: 9
 };
 })();

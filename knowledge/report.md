@@ -49,3 +49,7 @@ Return one complete internally consistent aircraft. Notes must state required re
 - A flying wing must read as one coherent aircraft: mirrored wing panels, a center pod or battery bay integrated into the root region, two vertical fins or winglets, elevons, continuous spar paths, and an accessible motor/firewall arrangement.
 - Avoid disconnected decorative geometry. Every rendered component must have a clear assembly relationship and structural purpose.
 - The final presentation should support an exploded assembly view, a ready/assembled view, specifications, CG, motor recommendation, spar locations, servo locations, and concise assembly priorities.
+
+
+## Supported architecture set in version 9
+Only four aircraft families are supported: Trainer, Fighter, Experimental, and Warbird. Do not answer with Sport or Aerobatic as a style. Each result must use a geometrically distinct architecture appropriate to its selected family.

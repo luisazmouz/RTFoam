@@ -14,7 +14,7 @@
    ============================================================ */
 
 const Lib = window.PlanLib;
-const APP_VERSION = 8; // must match PlanLib.VERSION — mismatch means stale files on the server
+const APP_VERSION = 9; // must match PlanLib.VERSION — mismatch means stale files on the server
 const LS_DESIGNS = 'slipstream_designs_v1';
 const LS_LOGS = 'slipstream_flightlog_v1';
 
@@ -44,6 +44,8 @@ const state = {
   },
   flightLogs: {},          // designId -> {verdict, note, ts}
   report: { verdict: '', note: '' },
+  hangarView: localStorage.getItem('rtfoam_hangar_view') || 'top',
+  detailView: 'dossier',
   knowledgeStatus: { loaded: false, files: [], totalChars: 0, error: null },
 };
 
@@ -439,7 +441,7 @@ function go(view) {
   document.getElementById('view-new').hidden = view !== 'new';
   document.getElementById('view-detail').hidden = view !== 'detail';
   if (view === 'new') { syncFormButtons(); renderConsole(); renderKnowledgeDebug(); }
-  if (view === 'home') renderCards();
+  if (view === 'home') { renderCards(); setTimeout(() => onHangarView(state.hangarView), 0); }
   window.scrollTo(0, 0);
 }
 
@@ -448,6 +450,7 @@ function openDesign(id) {
   const l = state.flightLogs[id] || {};
   state.report = { verdict: l.verdict || '', note: l.note || '' };
   state.view = 'detail';
+  state.detailView = 'dossier';
   document.getElementById('view-home').hidden = true;
   document.getElementById('view-new').hidden = true;
   document.getElementById('view-detail').hidden = false;
@@ -516,7 +519,7 @@ function onDownloadSvg() {
 
 function onPrintPdf() {
   const d = active(); if (!d) return;
-  const svg = Lib.buildPlanSVG(d.params, Lib.PRINT_COLORS, { physical: true });
+  const svg = Lib.buildDesignDossierSVG(d.params, Lib.PRINT_COLORS);
   const f = document.createElement('iframe');
   f.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0';
   document.body.appendChild(f);
@@ -639,6 +642,29 @@ function renderConsole() {
   err.textContent = state.error ? 'ERR // ' + state.error : '';
 }
 
+function onHangarView(view) {
+  if (!['top','exploded','perspective'].includes(view)) return;
+  state.hangarView = view;
+  try { localStorage.setItem('rtfoam_hangar_view', view); } catch (e) {}
+  for (const b of document.querySelectorAll('#hangar-view-switch button')) b.classList.toggle('on', b.dataset.view === view);
+  renderCards();
+}
+
+function onDetailView(view) {
+  if (!['dossier','cutsheet'].includes(view)) return;
+  state.detailView = view;
+  for (const b of document.querySelectorAll('.detail-view-switch button')) b.classList.toggle('on', b.dataset.detailView === view);
+  renderDetailPlan();
+}
+
+function renderDetailPlan() {
+  const d = active(); if (!d) return;
+  const el = document.getElementById('detail-plan'); if (!el) return;
+  el.innerHTML = state.detailView === 'cutsheet'
+    ? Lib.buildPlanSVG(d.params, Lib.PRINT_COLORS)
+    : Lib.buildDesignDossierSVG(d.params, Lib.PRINT_COLORS);
+}
+
 /* ============================================================
    RENDER — hangar cards + design detail
    ============================================================ */
@@ -653,7 +679,7 @@ function renderCards() {
       + (log && log.verdict ? ' · ' + log.verdict : '') + (d.userMade ? ' · YOURS' : '');
     return `
     <div class="card" style="animation-delay:${Math.min(i * 60, 480)}ms" onclick="openDesign('${h(d.id)}')">
-      <div class="preview">${Lib.buildReadyViewSVG(d.params, theme)}</div>
+      <div class="preview">${state.hangarView === 'exploded' ? Lib.buildExplodedPreviewSVG(d.params, theme) : state.hangarView === 'perspective' ? Lib.buildPerspectiveViewSVG(d.params, theme) : Lib.buildReadyViewSVG(d.params, theme)}</div>
       <div class="body">
         <div class="title-row"><span class="name">${h(d.name)}</span><span class="tag">${h(d.styleTag)}</span></div>
         <span class="meta">${h(meta)}</span>
@@ -673,7 +699,7 @@ function renderDetail() {
   document.getElementById('detail-tag').textContent = d.styleTag + (d.controlConfigTag ? ' · ' + d.controlConfigTag.toUpperCase() : '');
   document.getElementById('detail-desc').textContent = d.description;
 
-  document.getElementById('detail-plan').innerHTML = Lib.buildDesignDossierSVG(d.params, theme);
+  renderDetailPlan();
 
   const rows = [
     ['WINGSPAN', d.params.wingspanMM + ' mm'],

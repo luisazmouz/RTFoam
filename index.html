@@ -44,8 +44,8 @@ const CONFIG = {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=8">
-<script src="plan-lib.js?v=8"></script>
+<link rel="stylesheet" href="styles.css?v=9">
+<script src="plan-lib.js?v=9"></script>
 </head>
 <body>
 
@@ -53,7 +53,7 @@ const CONFIG = {
   <div class="logo" onclick="go('home')">
     <span class="mark"></span>
     <span class="name">RTFOAM</span>
-    <span class="sub">AIRFRAME LAB</span>
+    <span class="sub">AIRCRAFT STUDIO</span>
   </div>
   <nav>
     <button class="btn-ghost" onclick="go('home')">HANGAR</button>
@@ -67,8 +67,8 @@ const CONFIG = {
   <section id="view-home" class="view">
     <section class="hero">
       <div class="kicker rise rise-1">ENGINEERING MODEL // PARAMETRIC FOAM-BOARD AIRFRAMES</div>
-      <h1 class="rise rise-2">Choose the airframe.<br>Build from the dossier.</h1>
-      <p class="rise rise-3">RTFOAM engineers real, flyable foam-board aircraft — wing loading, tail volume, and center of gravity computed from real design equations — then drafts a full-size SVG cut sheet ready to print, cut, and fly.</p>
+      <h1 class="rise rise-2">Describe the mission.<br>Download the PDF.</h1>
+      <p class="rise rise-3">RTFOAM solves a real foam-board aircraft architecture, validates its stability and power system, then produces an illustrated build dossier and a separate true-scale construction sheet.</p>
       <div class="hero-cta rise rise-4">
         <button class="btn-solid" onclick="go('new')">+ NEW DESIGN</button>
         <span class="label">SVG · PDF · 1:1 SCALE · CG MARKED</span>
@@ -80,9 +80,10 @@ const CONFIG = {
           <h2>THE HANGAR</h2>
           <span class="label" id="hangar-counts">00 AIRFRAMES · 00 FLIGHT REPORTS</span>
         </div>
-        <div style="display:flex; gap:8px;">
-          <button class="btn-ghost small" onclick="onExportHangar()">↓ EXPORT</button>
-          <label class="btn-ghost small btn" style="display:inline-block;">↑ IMPORT<input type="file" id="import-input" accept="application/json,.json" style="display:none;" onchange="onImportHangar(this)"></label>
+        <div class="hangar-view-switch" id="hangar-view-switch">
+          <button class="btn-ghost small on" data-view="top" onclick="onHangarView('top')">TOP VIEW</button>
+          <button class="btn-ghost small" data-view="exploded" onclick="onHangarView('exploded')">EXPLODED</button>
+          <button class="btn-ghost small" data-view="perspective" onclick="onHangarView('perspective')">PERSPECTIVE</button>
         </div>
       </div>
       <div class="cards" id="cards"><!-- populated by app.js --></div>
@@ -98,13 +99,11 @@ const CONFIG = {
 
         <div class="field">
           <span class="label">AIRFRAME STYLE</span>
-          <div class="seg" id="style-buttons" style="display:grid; grid-template-columns:1fr 1fr 1fr;">
+          <div class="seg" id="style-buttons" style="display:grid; grid-template-columns:1fr 1fr;">
             <button data-style="Trainer" onclick="onStyleChange('Trainer')">TRAINER</button>
             <button data-style="Fighter" onclick="onStyleChange('Fighter')">FIGHTER</button>
             <button data-style="Experimental" onclick="onStyleChange('Experimental')">EXPERIMENTAL</button>
-            <button data-style="Aerobatic" onclick="onStyleChange('Aerobatic')">AEROBATIC</button>
             <button data-style="Warbird" onclick="onStyleChange('Warbird')">WARBIRD</button>
-            <button data-style="Sport" onclick="onStyleChange('Sport')">SPORT</button>
           </div>
         </div>
 
@@ -156,15 +155,15 @@ const CONFIG = {
     </div>
     <p id="detail-desc" style="margin:0 0 30px; max-width:680px; font-size:16px; line-height:1.55; color:var(--dim);"></p>
     <div class="detail-cols">
-      <div class="detail-plan" id="detail-plan"></div>
+      <div class="detail-plan-wrap"><div class="detail-view-switch"><button class="btn-ghost small on" data-detail-view="dossier" onclick="onDetailView('dossier')">BUILD DOSSIER</button><button class="btn-ghost small" data-detail-view="cutsheet" onclick="onDetailView('cutsheet')">1:1 CUT SHEET</button></div><div class="detail-plan" id="detail-plan"></div></div>
       <div class="detail-rail">
         <div class="panel" style="padding:20px;">
           <div class="label" style="letter-spacing:3px; margin-bottom:14px;">FLIGHT DATA</div>
           <div id="detail-stats"></div>
         </div>
         <div style="display:flex; flex-direction:column; gap:10px;">
-          <button class="btn-solid" style="padding:15px;" onclick="onDownloadSvg()">↓ DOWNLOAD SVG</button>
-          <button class="btn-ghost" style="padding:15px; font-size:13px;" onclick="onPrintPdf()">⎙ PRINT / SAVE PDF</button>
+          <button class="btn-solid" style="padding:15px;" onclick="onDownloadSvg()">DOWNLOAD 1:1 SVG</button>
+          <button class="btn-ghost" style="padding:15px; font-size:13px;" onclick="onPrintPdf()">PRINT / SAVE DOSSIER PDF</button>
           <button class="btn-ghost" id="btn-delete" style="font-size:11px; padding:12px; border-color:rgba(232,106,94,0.5); color:var(--danger);" onclick="onDeleteDesign()" hidden>DELETE FROM HANGAR</button>
           <span class="label" style="font-size:10.5px; letter-spacing:1px; line-height:1.6;">SVG IS DRAWN AT TRUE SCALE (MM). PRINT AT 100% — POSTER/TILE MODE FOR LARGE PARTS.</span>
         </div>
@@ -192,10 +191,10 @@ const CONFIG = {
 </main>
 
 <footer>
-  <span>RTFOAM — PARAMETRIC FOAM-BOARD AIRFRAMES</span>
-  <span>V8 · ALWAYS VERIFY CG BEFORE THE MAIDEN</span>
+  <span>RTFOAM — BUILDABLE FOAM AIRCRAFT</span>
+  <span>V9 · ALWAYS VERIFY CG BEFORE THE MAIDEN</span>
 </footer>
 
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

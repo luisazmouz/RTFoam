@@ -59,64 +59,6 @@
       "high wing loading"
     ]
   },
-  "Sport": {
-    "mission": "General-purpose responsive model for loops, rolls, inverted passes, and predictable everyday flying.",
-    "wingLoadingGPerDM2": [
-      34,
-      49
-    ],
-    "preferredWingLoadingGPerDM2": [
-      37,
-      45
-    ],
-    "aspectRatio": [
-      5.0,
-      6.4
-    ],
-    "preferredAspectRatio": [
-      5.3,
-      6.0
-    ],
-    "taperRatio": [
-      0.55,
-      0.78
-    ],
-    "cgPercentMAC": [
-      28,
-      32
-    ],
-    "tailVolumeCoefficient": [
-      0.45,
-      0.55
-    ],
-    "verticalFinPercentOfWingArea": [
-      8,
-      10.5
-    ],
-    "rootSweepMM": [
-      0,
-      70
-    ],
-    "fuselageToSpanRatio": [
-      0.72,
-      0.92
-    ],
-    "fuselageHeightToRootChordRatio": [
-      0.27,
-      0.4
-    ],
-    "designPriorities": [
-      "balanced roll and pitch response",
-      "moderate loading",
-      "structural stiffness",
-      "neutral but safe handling"
-    ],
-    "avoid": [
-      "trainer-like oversized wing",
-      "fighter-like loading",
-      "excessively small tail"
-    ]
-  },
   "Fighter": {
     "mission": "Compact, fast, swept park jet or fighter-inspired airframe; prioritize directional stability and structural strength without pretending it is beginner-friendly.",
     "wingLoadingGPerDM2": [
@@ -250,64 +192,6 @@
       "novelty for appearance only",
       "unsupported extreme geometry",
       "tail-less aft CG"
-    ]
-  },
-  "Aerobatic": {
-    "mission": "Purpose-built aerobatic model with symmetrical response, strong control authority, and enough tail volume for precise tracking.",
-    "wingLoadingGPerDM2": [
-      36,
-      52
-    ],
-    "preferredWingLoadingGPerDM2": [
-      39,
-      48
-    ],
-    "aspectRatio": [
-      4.8,
-      6.2
-    ],
-    "preferredAspectRatio": [
-      5.1,
-      5.8
-    ],
-    "taperRatio": [
-      0.62,
-      0.88
-    ],
-    "cgPercentMAC": [
-      29,
-      33
-    ],
-    "tailVolumeCoefficient": [
-      0.53,
-      0.66
-    ],
-    "verticalFinPercentOfWingArea": [
-      10,
-      13
-    ],
-    "rootSweepMM": [
-      0,
-      45
-    ],
-    "fuselageToSpanRatio": [
-      0.78,
-      1.02
-    ],
-    "fuselageHeightToRootChordRatio": [
-      0.28,
-      0.43
-    ],
-    "designPriorities": [
-      "large tail authority",
-      "low sweep",
-      "predictable inverted flight",
-      "stiff wing"
-    ],
-    "avoid": [
-      "fighter-like taper",
-      "small control surfaces",
-      "excessively forward CG"
     ]
   },
   "Warbird": {

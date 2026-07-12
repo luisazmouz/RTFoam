@@ -56,10 +56,8 @@
       "description": "Standard layout, easiest to trim.",
       "allowedStyles": [
         "Trainer",
-        "Sport",
         "Fighter",
         "Experimental",
-        "Aerobatic",
         "Warbird"
       ]
     },
@@ -82,10 +80,8 @@
       "description": "Full tail with strongest yaw and crosswind control.",
       "allowedStyles": [
         "Trainer",
-        "Sport",
         "Fighter",
         "Experimental",
-        "Aerobatic",
         "Warbird"
       ]
     },
@@ -96,7 +92,6 @@
       "hasRudder": false,
       "description": "Two ruddervator panels replace separate horizontal and vertical tails.",
       "allowedStyles": [
-        "Sport",
         "Experimental"
       ]
     }
