@@ -1,15 +1,16 @@
 {
-  "description": "Reference equations used by plan-lib.js. This file documents the math for the AI prompt; the app implements the same formulas in code so results are exact, not model-approximated.",
-  "wingArea": "S = ((rootChordMM + tipChordMM) / 2) * wingspanMM   [mm^2, divide by 10000 for dm^2]",
-  "aspectRatio": "AR = wingspanMM^2 / S",
-  "taperRatio": "lambda = tipChordMM / rootChordMM",
-  "meanAerodynamicChord": "MAC = rootChordMM * (2/3) * (1 + lambda + lambda^2) / (1 + lambda)",
-  "wingLoading": "WL = weightG / (S / 10000)   [g/dm^2] — weightG is DERIVED as S(dm^2) * targetWingLoading, not chosen freely",
+  "description": "Equations used by plan-lib.js and interpreted by the model.",
+  "wingArea": "S = ((Cr + Ct) / 2) * b",
+  "aspectRatio": "AR = b^2 / S",
+  "taperRatio": "lambda = Ct / Cr",
+  "meanAerodynamicChord": "MAC = Cr * (2/3) * (1 + lambda + lambda^2) / (1 + lambda)",
+  "wingLoading": "WL = W / S_dm2; W is derived from selected target WL, then checked against motor capability.",
   "tailMomentArm": "Lh = fuselageLengthMM - noseLengthMM",
-  "horizontalTailVolumeCoefficient": "Vh = (hStabAreaMM2 * Lh) / (S * MAC)",
-  "horizontalStabAreaFromVh": "hStabAreaMM2 = (Vh * S * MAC) / Lh",
-  "verticalTailArea": "vStabAreaMM2 = verticalFinPercent * S",
-  "cgPosition": "cgFromRootLE_MM = macLE + MAC * (cgPercentMAC / 100), where macLE is the sweep offset at the spanwise MAC station",
-  "taperRatioBounds": { "min": 0.45, "max": 0.85 },
-  "note": "Weight is never an input the model or the pilot chooses directly — it is computed from wing area and the style's target wing loading so wing loading is always correct by construction."
+  "horizontalTailVolumeCoefficient": "Vh = (Sh * Lh) / (S * MAC)",
+  "horizontalStabAreaFromVh": "Sh = (Vh * S * MAC) / Lh",
+  "verticalTailArea": "Sv = finPercent * S",
+  "cgPosition": "CG_root = MAC_LE_at_MAC_station + MAC * cgPercentMAC/100",
+  "fuselageRatio": "fuselageToSpanRatio = fuselageLengthMM / wingspanMM",
+  "thrustMargin": "estimatedStaticThrust / allUpWeight must meet the selected motor minimumThrustToWeightRatio for the intended style.",
+  "noveltyDistance": "Weighted normalized distance across validated geometry; category penalties apply for different style/control layouts."
 }

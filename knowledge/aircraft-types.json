@@ -1,56 +1,371 @@
 {
   "Trainer": {
-    "wingLoadingGPerDM2": [25, 35],
-    "aspectRatio": [5.5, 7.0],
-    "cgPercentMAC": [28, 30],
-    "tailVolumeCoefficient": 0.55,
-    "verticalFinPercentOfWingArea": [8, 10],
-    "rootSweepMM": [0, 40],
-    "notes": "Flat-bottom or semi-symmetrical section, generous dihedral, forgiving stall. Never sweep the wing meaningfully."
+    "mission": "Primary trainer and relaxed park flyer; prioritize low stall speed, self-correction, gentle control response, and easy hand launches.",
+    "wingLoadingGPerDM2": [
+      24,
+      34
+    ],
+    "preferredWingLoadingGPerDM2": [
+      26,
+      31
+    ],
+    "aspectRatio": [
+      5.8,
+      7.4
+    ],
+    "preferredAspectRatio": [
+      6.2,
+      7.0
+    ],
+    "taperRatio": [
+      0.68,
+      0.88
+    ],
+    "cgPercentMAC": [
+      26,
+      29
+    ],
+    "tailVolumeCoefficient": [
+      0.52,
+      0.62
+    ],
+    "verticalFinPercentOfWingArea": [
+      8.5,
+      11
+    ],
+    "rootSweepMM": [
+      0,
+      35
+    ],
+    "fuselageToSpanRatio": [
+      0.68,
+      0.82
+    ],
+    "fuselageHeightToRootChordRatio": [
+      0.28,
+      0.42
+    ],
+    "designPriorities": [
+      "low wing loading",
+      "high static stability",
+      "mild taper",
+      "minimal sweep",
+      "generous tail volume"
+    ],
+    "avoid": [
+      "aggressive aft CG",
+      "high sweep",
+      "small tail",
+      "high wing loading"
+    ]
   },
   "Sport": {
-    "wingLoadingGPerDM2": [35, 50],
-    "aspectRatio": [5.0, 6.0],
-    "cgPercentMAC": [30, 32],
-    "tailVolumeCoefficient": 0.50,
-    "verticalFinPercentOfWingArea": [8, 10],
-    "rootSweepMM": [0, 60],
-    "notes": "Mid-wing, moderate dihedral, comfortable with loops and rolls."
+    "mission": "General-purpose responsive model for loops, rolls, inverted passes, and predictable everyday flying.",
+    "wingLoadingGPerDM2": [
+      34,
+      49
+    ],
+    "preferredWingLoadingGPerDM2": [
+      37,
+      45
+    ],
+    "aspectRatio": [
+      5.0,
+      6.4
+    ],
+    "preferredAspectRatio": [
+      5.3,
+      6.0
+    ],
+    "taperRatio": [
+      0.55,
+      0.78
+    ],
+    "cgPercentMAC": [
+      28,
+      32
+    ],
+    "tailVolumeCoefficient": [
+      0.45,
+      0.55
+    ],
+    "verticalFinPercentOfWingArea": [
+      8,
+      10.5
+    ],
+    "rootSweepMM": [
+      0,
+      70
+    ],
+    "fuselageToSpanRatio": [
+      0.72,
+      0.92
+    ],
+    "fuselageHeightToRootChordRatio": [
+      0.27,
+      0.4
+    ],
+    "designPriorities": [
+      "balanced roll and pitch response",
+      "moderate loading",
+      "structural stiffness",
+      "neutral but safe handling"
+    ],
+    "avoid": [
+      "trainer-like oversized wing",
+      "fighter-like loading",
+      "excessively small tail"
+    ]
   },
   "Fighter": {
-    "wingLoadingGPerDM2": [50, 70],
-    "aspectRatio": [3.5, 5.0],
-    "cgPercentMAC": [25, 28],
-    "tailVolumeCoefficient": 0.45,
-    "verticalFinPercentOfWingArea": [10, 14],
-    "rootSweepMM": [60, 220],
-    "notes": "Swept, low-aspect-ratio wing; smaller, more effective control surfaces; fast and less forgiving — flag this in build notes."
+    "mission": "Compact, fast, swept park jet or fighter-inspired airframe; prioritize directional stability and structural strength without pretending it is beginner-friendly.",
+    "wingLoadingGPerDM2": [
+      46,
+      66
+    ],
+    "preferredWingLoadingGPerDM2": [
+      50,
+      60
+    ],
+    "aspectRatio": [
+      3.4,
+      5.0
+    ],
+    "preferredAspectRatio": [
+      3.7,
+      4.6
+    ],
+    "taperRatio": [
+      0.42,
+      0.65
+    ],
+    "cgPercentMAC": [
+      23,
+      27
+    ],
+    "tailVolumeCoefficient": [
+      0.4,
+      0.5
+    ],
+    "verticalFinPercentOfWingArea": [
+      10,
+      14
+    ],
+    "rootSweepMM": [
+      70,
+      240
+    ],
+    "fuselageToSpanRatio": [
+      0.72,
+      1.05
+    ],
+    "fuselageHeightToRootChordRatio": [
+      0.24,
+      0.38
+    ],
+    "designPriorities": [
+      "forward CG margin",
+      "substantial fin area",
+      "low aspect ratio",
+      "positive structural reinforcement"
+    ],
+    "avoid": [
+      "trainer proportions",
+      "aft CG",
+      "tiny fins",
+      "underpowered motor selection"
+    ]
   },
   "Experimental": {
-    "wingLoadingGPerDM2": [35, 55],
-    "aspectRatio": [4.0, 8.0],
-    "cgPercentMAC": [22, 30],
-    "tailVolumeCoefficient": 0.50,
-    "verticalFinPercentOfWingArea": [8, 12],
-    "rootSweepMM": [0, 150],
-    "notes": "Unconventional layout. With the Elevons-only control configuration this becomes a flying wing: use the low end of the CG band and the high end of the sweep band for pitch stability without a horizontal tail."
+    "mission": "A genuinely unconventional but analyzable layout. Novelty must come from geometry or configuration, never from violating stability fundamentals.",
+    "wingLoadingGPerDM2": [
+      30,
+      54
+    ],
+    "preferredWingLoadingGPerDM2": [
+      34,
+      48
+    ],
+    "aspectRatio": [
+      3.8,
+      8.2
+    ],
+    "preferredAspectRatio": [
+      4.4,
+      7.4
+    ],
+    "taperRatio": [
+      0.38,
+      0.82
+    ],
+    "cgPercentMAC": [
+      20,
+      29
+    ],
+    "tailVolumeCoefficient": [
+      0.44,
+      0.58
+    ],
+    "verticalFinPercentOfWingArea": [
+      9,
+      14
+    ],
+    "rootSweepMM": [
+      0,
+      230
+    ],
+    "fuselageToSpanRatio": [
+      0.35,
+      0.92
+    ],
+    "fuselageHeightToRootChordRatio": [
+      0.2,
+      0.4
+    ],
+    "flyingWingOverrides": {
+      "cgPercentMAC": [
+        19,
+        23
+      ],
+      "rootSweepMM": [
+        120,
+        260
+      ],
+      "verticalFinPercentOfWingArea": [
+        11,
+        16
+      ],
+      "taperRatio": [
+        0.38,
+        0.65
+      ]
+    },
+    "designPriorities": [
+      "clear aerodynamic rationale",
+      "distinct geometry",
+      "conservative CG",
+      "adequate yaw stability"
+    ],
+    "avoid": [
+      "novelty for appearance only",
+      "unsupported extreme geometry",
+      "tail-less aft CG"
+    ]
   },
   "Aerobatic": {
-    "wingLoadingGPerDM2": [40, 55],
-    "aspectRatio": [5.0, 6.0],
-    "cgPercentMAC": [30, 33],
-    "tailVolumeCoefficient": 0.55,
-    "verticalFinPercentOfWingArea": [10, 12],
-    "rootSweepMM": [0, 40],
-    "notes": "Near-neutral CG for symmetric up/down performance, oversized control surfaces and tail for authority. Wing section should be symmetrical."
+    "mission": "Purpose-built aerobatic model with symmetrical response, strong control authority, and enough tail volume for precise tracking.",
+    "wingLoadingGPerDM2": [
+      36,
+      52
+    ],
+    "preferredWingLoadingGPerDM2": [
+      39,
+      48
+    ],
+    "aspectRatio": [
+      4.8,
+      6.2
+    ],
+    "preferredAspectRatio": [
+      5.1,
+      5.8
+    ],
+    "taperRatio": [
+      0.62,
+      0.88
+    ],
+    "cgPercentMAC": [
+      29,
+      33
+    ],
+    "tailVolumeCoefficient": [
+      0.53,
+      0.66
+    ],
+    "verticalFinPercentOfWingArea": [
+      10,
+      13
+    ],
+    "rootSweepMM": [
+      0,
+      45
+    ],
+    "fuselageToSpanRatio": [
+      0.78,
+      1.02
+    ],
+    "fuselageHeightToRootChordRatio": [
+      0.28,
+      0.43
+    ],
+    "designPriorities": [
+      "large tail authority",
+      "low sweep",
+      "predictable inverted flight",
+      "stiff wing"
+    ],
+    "avoid": [
+      "fighter-like taper",
+      "small control surfaces",
+      "excessively forward CG"
+    ]
   },
   "Warbird": {
-    "wingLoadingGPerDM2": [45, 65],
-    "aspectRatio": [5.0, 6.5],
-    "cgPercentMAC": [28, 31],
-    "tailVolumeCoefficient": 0.55,
-    "verticalFinPercentOfWingArea": [9, 11],
-    "rootSweepMM": [20, 120],
-    "notes": "Scale-inspired proportions: moderate taper, slightly heavier wing loading than a pure sport model is normal and expected."
+    "mission": "Scale-inspired propeller aircraft with recognizable proportions, moderate taper, and conservative handling suitable for foam-board construction.",
+    "wingLoadingGPerDM2": [
+      41,
+      59
+    ],
+    "preferredWingLoadingGPerDM2": [
+      45,
+      54
+    ],
+    "aspectRatio": [
+      4.8,
+      6.4
+    ],
+    "preferredAspectRatio": [
+      5.1,
+      6.0
+    ],
+    "taperRatio": [
+      0.45,
+      0.68
+    ],
+    "cgPercentMAC": [
+      26,
+      30
+    ],
+    "tailVolumeCoefficient": [
+      0.48,
+      0.59
+    ],
+    "verticalFinPercentOfWingArea": [
+      9,
+      12
+    ],
+    "rootSweepMM": [
+      20,
+      130
+    ],
+    "fuselageToSpanRatio": [
+      0.74,
+      0.98
+    ],
+    "fuselageHeightToRootChordRatio": [
+      0.3,
+      0.46
+    ],
+    "designPriorities": [
+      "scale-like taper",
+      "safe forward CG",
+      "adequate fin",
+      "reinforced firewall and spar"
+    ],
+    "avoid": [
+      "tiny scale tail surfaces",
+      "excessive loading",
+      "cosmetic geometry that weakens structure"
+    ]
   }
 }

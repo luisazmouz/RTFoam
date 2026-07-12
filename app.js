@@ -14,7 +14,7 @@
    ============================================================ */
 
 const Lib = window.PlanLib;
-const APP_VERSION = 6; // must match PlanLib.VERSION — mismatch means stale files on the server
+const APP_VERSION = 7; // must match PlanLib.VERSION — mismatch means stale files on the server
 const LS_DESIGNS = 'slipstream_designs_v1';
 const LS_LOGS = 'slipstream_flightlog_v1';
 
@@ -26,6 +26,7 @@ const KNOWLEDGE_FILES = [
   'knowledge/validation.json',
   'knowledge/materials.json',
   'knowledge/motors.json',
+  'knowledge/novelty.json',
 ];
 
 const state = {
@@ -62,7 +63,7 @@ async function loadKnowledgeFiles() {
   const parts = [];
   const fileList = [];
   let totalChars = 0;
-  let parsedAircraftTypes = null, parsedDesignRules = null, parsedValidation = null, parsedMaterials = null, parsedMotors = null;
+  let parsedAircraftTypes = null, parsedDesignRules = null, parsedValidation = null, parsedMaterials = null, parsedMotors = null, parsedNovelty = null;
 
   for (const path of KNOWLEDGE_FILES) {
     let response;
@@ -85,6 +86,7 @@ async function loadKnowledgeFiles() {
     if (path.endsWith('validation.json')) parsedValidation = JSON.parse(text);
     if (path.endsWith('materials.json')) parsedMaterials = JSON.parse(text);
     if (path.endsWith('motors.json')) parsedMotors = JSON.parse(text);
+    if (path.endsWith('novelty.json')) parsedNovelty = JSON.parse(text);
   }
 
   return {
@@ -97,6 +99,7 @@ async function loadKnowledgeFiles() {
       validation: parsedValidation,
       materials: parsedMaterials,
       motors: parsedMotors,
+      novelty: parsedNovelty,
     },
   };
 }
@@ -109,6 +112,7 @@ async function bootKnowledge() {
   try {
     const k = await loadKnowledgeFiles();
     state.knowledgeStatus = { loaded: true, files: k.fileList, totalChars: k.totalChars, error: null };
+    state._noveltyRules = k.parsed.novelty;
     populateFormFromKnowledge(k.parsed);
   } catch (e) {
     state.knowledgeStatus = { loaded: false, files: [], totalChars: 0, error: (e && e.message) || String(e) };
@@ -259,7 +263,8 @@ function buildMemory() {
 }
 
 function buildHangarInventory() {
-  return state.designs.slice(0, 60).map(d => {
+  const limit = (state._noveltyRules && state._noveltyRules.maxHangarItemsInPrompt) || 60;
+  return state.designs.slice(0, limit).map(d => {
     const p = d.params;
     const st = Lib.computeStats(p);
     const taper = p.rootChordMM ? p.tipChordMM / p.rootChordMM : 0;
@@ -274,33 +279,47 @@ function normalizedName(name) {
 function designDistance(a, b) {
   const ap = a.params, bp = b.params;
   const as = Lib.computeStats(ap), bs = Lib.computeStats(bp);
+  const rules = state._noveltyRules || {};
+  const metricRules = rules.metrics || {};
   const rel = (x, y, floor = 1) => Math.abs(x - y) / Math.max(floor, Math.abs(x), Math.abs(y));
   const sameStyle = String(a.styleTag || '').toUpperCase() === String(b.styleTag || '').toUpperCase();
   const sameControl = String(a.controlConfigTag || ap.tailType || '') === String(b.controlConfigTag || bp.tailType || '');
-  const at = ap.tipChordMM / Math.max(1, ap.rootChordMM);
-  const bt = bp.tipChordMM / Math.max(1, bp.rootChordMM);
-  const metrics = [
-    rel(ap.wingspanMM, bp.wingspanMM, 100),
-    rel(as.ar, bs.ar, 1),
-    rel(at, bt, 0.1),
-    rel(ap.sweepMM, bp.sweepMM, 25),
-    rel(ap.fuselageLengthMM, bp.fuselageLengthMM, 100),
-    Math.abs(ap.cgPercentMAC - bp.cgPercentMAC) / 10,
-    rel(as.tailVolume, bs.tailVolume, 0.1),
-    rel(as.wingLoading, bs.wingLoading, 5),
-  ];
-  const geometryDistance = metrics.reduce((sum, n) => sum + Math.min(1, n), 0) / metrics.length;
-  const categoryPenalty = (sameStyle ? 0 : 0.22) + (sameControl ? 0 : 0.22);
-  return geometryDistance + categoryPenalty;
+  const values = {
+    wingspanMM: [ap.wingspanMM, bp.wingspanMM],
+    aspectRatio: [as.ar, bs.ar],
+    taperRatio: [ap.tipChordMM / Math.max(1, ap.rootChordMM), bp.tipChordMM / Math.max(1, bp.rootChordMM)],
+    sweepMM: [ap.sweepMM, bp.sweepMM],
+    fuselageToSpanRatio: [ap.fuselageLengthMM / Math.max(1, ap.wingspanMM), bp.fuselageLengthMM / Math.max(1, bp.wingspanMM)],
+    cgPercentMAC: [ap.cgPercentMAC, bp.cgPercentMAC],
+    tailVolumeCoefficient: [as.tailVolume, bs.tailVolume],
+    wingLoadingGPerDM2: [as.wingLoading, bs.wingLoading],
+  };
+  let weighted = 0, totalWeight = 0;
+  for (const [key, pair] of Object.entries(values)) {
+    const r = metricRules[key] || {};
+    const weight = Number(r.weight) || 1;
+    const distance = r.absoluteScale
+      ? Math.abs(pair[0] - pair[1]) / Number(r.absoluteScale)
+      : rel(pair[0], pair[1], Number(r.normalizationFloor) || 1);
+    weighted += Math.min(1, distance) * weight;
+    totalWeight += weight;
+  }
+  const geometryDistance = totalWeight ? weighted / totalWeight : 1;
+  const penalties = rules.categoryPenalties || {};
+  return geometryDistance
+    + (sameStyle ? 0 : Number(penalties.differentStyle ?? 0.22))
+    + (sameControl ? 0 : Number(penalties.differentControlConfiguration ?? 0.22));
 }
 
 function findDuplicate(candidate) {
+  const rules = state._noveltyRules || {};
+  const threshold = Number(rules.duplicateDistanceThreshold) || 0.115;
   const candidateName = normalizedName(candidate.name);
   let closest = null;
   for (const existing of state.designs) {
-    const exactName = candidateName && candidateName === normalizedName(existing.name);
+    const exactName = !!(rules.name?.rejectExactNormalizedName !== false && candidateName && candidateName === normalizedName(existing.name));
     const distance = designDistance(candidate, existing);
-    if (exactName || distance < 0.115) {
+    if (exactName || distance < threshold) {
       if (!closest || exactName || distance < closest.distance) closest = { existing, distance, exactName };
     }
   }
@@ -310,7 +329,9 @@ function findDuplicate(candidate) {
 function duplicateFeedback(match) {
   const d = match.existing;
   const st = Lib.computeStats(d.params);
-  return `Too similar to "${d.name}" (${d.styleTag}, ${d.controlConfigTag || d.params.tailType}, span ${d.params.wingspanMM}mm, AR ${st.ar.toFixed(2)}, sweep ${d.params.sweepMM}mm, CG ${d.params.cgPercentMAC}%). Use a new callsign and materially change at least three of: aspect ratio, taper, sweep, fuselage proportion, target wing loading, CG position, or tail volume. Do not leave the validated safety bands.`;
+  const minChanges = (state._noveltyRules && state._noveltyRules.minimumMaterialDifferences) || 3;
+  const retry = (state._noveltyRules && state._noveltyRules.retryInstruction) || 'Change the geometry materially while staying inside all safety bands.';
+  return `Too similar to "${d.name}" (${d.styleTag}, ${d.controlConfigTag || d.params.tailType}, span ${d.params.wingspanMM}mm, AR ${st.ar.toFixed(2)}, sweep ${d.params.sweepMM}mm, CG ${d.params.cgPercentMAC}%). Change at least ${minChanges} engineering metrics. ${retry}`;
 }
 
 const GEN_LINES = [
@@ -332,6 +353,7 @@ async function onGenerate() {
   try {
     knowledge = await loadKnowledgeFiles();
     state.knowledgeStatus = { loaded: true, files: knowledge.fileList, totalChars: knowledge.totalChars, error: null };
+    state._noveltyRules = knowledge.parsed.novelty;
   } catch (e) {
     state.knowledgeStatus = { loaded: false, files: [], totalChars: 0, error: (e && e.message) || String(e) };
     renderKnowledgeDebug();
@@ -358,7 +380,7 @@ async function onGenerate() {
     const hangarInventory = buildHangarInventory();
     let parsed = null;
     let noveltyFeedback = '';
-    const maxAttempts = 3;
+    const maxAttempts = (knowledge.parsed.novelty && knowledge.parsed.novelty.maxGenerationAttempts) || 3;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       if (attempt > 1) {

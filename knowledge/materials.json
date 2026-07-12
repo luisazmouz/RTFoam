@@ -1,4 +1,46 @@
 [
-  { "id": "5mm-foamboard", "label": "5 mm foam board", "thicknessMM": 5, "note": "Standard — most rigid, best default for a first build." },
-  { "id": "3mm-depron", "label": "3 mm depron", "thicknessMM": 3, "note": "Lighter but less rigid — best for small, low-wing-loading models." }
+  {
+    "id": "5mm-foamboard",
+    "label": "5 mm foam board",
+    "thicknessMM": 5,
+    "estimatedSheetMassGPerM2": [
+      280,
+      380
+    ],
+    "recommendedWingspanMM": [
+      650,
+      1400
+    ],
+    "absoluteWingspanMM": [
+      500,
+      1600
+    ],
+    "maxUnsupportedPanelSpanMM": 450,
+    "sparRequiredAboveWingspanMM": 700,
+    "doubleSparRecommendedAboveWingspanMM": 1250,
+    "minimumRootChordMM": 100,
+    "notes": "Rigid default. Remove paper selectively only when the design accounts for lost stiffness."
+  },
+  {
+    "id": "3mm-depron",
+    "label": "3 mm depron",
+    "thicknessMM": 3,
+    "estimatedSheetMassGPerM2": [
+      90,
+      160
+    ],
+    "recommendedWingspanMM": [
+      500,
+      950
+    ],
+    "absoluteWingspanMM": [
+      500,
+      1150
+    ],
+    "maxUnsupportedPanelSpanMM": 350,
+    "sparRequiredAboveWingspanMM": 600,
+    "doubleSparRecommendedAboveWingspanMM": 950,
+    "minimumRootChordMM": 80,
+    "notes": "Light but flexible. Use carbon reinforcement and avoid large high-loading warbirds or fighters."
+  }
 ]

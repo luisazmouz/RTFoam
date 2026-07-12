@@ -12,6 +12,7 @@
 (function () {
 
 function mid(range) { return (range[0] + range[1]) / 2; }
+function asRange(value, spread) { return Array.isArray(value) ? value : [Number(value) - spread, Number(value) + spread]; }
 
 /* ============================================================
    CORE EQUATIONS (pure math — see /knowledge/equations.json for
@@ -382,7 +383,7 @@ ${noveltyFeedback}`;
    must be the knowledge files, not this code.
    ============================================================ */
 function parseDesign(text, form, knowledge) {
-  if (!knowledge || !knowledge.aircraftTypes || !knowledge.designRules || !knowledge.validation) {
+  if (!knowledge || !knowledge.aircraftTypes || !knowledge.designRules || !knowledge.validation || !knowledge.materials || !knowledge.motors || !knowledge.novelty) {
     throw new Error('Knowledge files missing. Aircraft generation disabled.');
   }
   const a = text.indexOf('{'), b = text.lastIndexOf('}');
@@ -396,25 +397,40 @@ function parseDesign(text, form, knowledge) {
   const rules = knowledge.designRules;
   const val = knowledge.validation;
   const isWing = cc.tailType === 'flyingwing';
+  if (Array.isArray(cc.allowedStyles) && !cc.allowedStyles.includes(form.style)) {
+    throw new Error('Control configuration "' + form.controlConfig + '" is not approved for style "' + form.style + '".');
+  }
+  const motorSpec = knowledge.motors.find(m => m.label === form.motor);
+  if (!motorSpec) throw new Error('Selected motor is missing from motors.json: ' + form.motor);
+  const materialSpec = knowledge.materials.find(m => m.label === form.foam);
+  if (!materialSpec) throw new Error('Selected material is missing from materials.json: ' + form.foam);
 
+  const materialSpan = materialSpec.absoluteWingspanMM || val.wingspanMM;
   const wingspanMM = clampInt(form.wingspan, val.wingspanMM[0], val.wingspanMM[1], 900);
+  if (wingspanMM < materialSpan[0] || wingspanMM > materialSpan[1]) {
+    throw new Error(form.foam + ' supports ' + materialSpan[0] + '–' + materialSpan[1] + ' mm wingspan; requested ' + wingspanMM + ' mm.');
+  }
 
   // --- wing: preserve the model's proposed planform variation, but clamp
   // both taper and aspect ratio into the style's proven-safe bands. This avoids
   // collapsing every aircraft of the same style/span into the same midpoint geometry.
   const modelRoot = Number(j.rootChordMM) || wingspanMM / mid(spec.aspectRatio);
   const modelTip = Number(j.tipChordMM) || modelRoot * rules.taperRatio.default;
-  const taper = clamp(modelTip / Math.max(1, modelRoot), rules.taperRatio.min, rules.taperRatio.max, rules.taperRatio.default);
+  const styleTaper = isWing && spec.flyingWingOverrides?.taperRatio ? spec.flyingWingOverrides.taperRatio : (spec.taperRatio || [rules.taperRatio.min, rules.taperRatio.max]);
+  const taper = clamp(modelTip / Math.max(1, modelRoot), Math.max(rules.taperRatio.min, styleTaper[0]), Math.min(rules.taperRatio.max, styleTaper[1]), rules.taperRatio.default);
   const proposedAreaMM2 = ((modelRoot + modelTip) / 2) * wingspanMM;
   const proposedAR = proposedAreaMM2 > 0 ? (wingspanMM * wingspanMM) / proposedAreaMM2 : mid(spec.aspectRatio);
   const targetAR = clamp(proposedAR, spec.aspectRatio[0], spec.aspectRatio[1], mid(spec.aspectRatio));
   const avgChord = wingspanMM / targetAR;
-  const rootChordMM = Math.max(val.minRootChordMM, Math.round((2 * avgChord) / (1 + taper)));
-  const tipChordMM = Math.max(val.minTipChordMM, Math.round(taper * rootChordMM));
+  const rootBounds = val.rootChordMM || [val.minRootChordMM, 420];
+  const tipBounds = val.tipChordMM || [val.minTipChordMM, 300];
+  const rootChordMM = clampInt(Math.round((2 * avgChord) / (1 + taper)), Math.max(rootBounds[0], materialSpec.minimumRootChordMM || 0), rootBounds[1], Math.round((2 * avgChord) / (1 + taper)));
+  const tipChordMM = clampInt(Math.round(taper * rootChordMM), tipBounds[0], tipBounds[1], Math.round(taper * rootChordMM));
 
+  const sweepBand = isWing && spec.flyingWingOverrides?.rootSweepMM ? spec.flyingWingOverrides.rootSweepMM : spec.rootSweepMM;
   const sweepMM = isWing
-    ? clampInt(j.sweepMM, Math.max(spec.rootSweepMM[0], rules.flyingWingMinSweepMM || 120), Math.max(spec.rootSweepMM[1], rules.flyingWingMinSweepMM || 120), Math.max(mid(spec.rootSweepMM), rules.flyingWingMinSweepMM || 120))
-    : clampInt(j.sweepMM, spec.rootSweepMM[0], spec.rootSweepMM[1], mid(spec.rootSweepMM));
+    ? clampInt(j.sweepMM, Math.max(sweepBand[0], rules.flyingWingMinSweepMM || 120), Math.max(sweepBand[1], rules.flyingWingMinSweepMM || 120), Math.max(mid(sweepBand), rules.flyingWingMinSweepMM || 120))
+    : clampInt(j.sweepMM, sweepBand[0], sweepBand[1], mid(sweepBand));
 
   const areaMM2 = ((rootChordMM + tipChordMM) / 2) * wingspanMM;
   const areaDM2 = areaMM2 / 10000;
@@ -422,19 +438,27 @@ function parseDesign(text, form, knowledge) {
   const mac = rootChordMM * (2 / 3) * ((1 + macTaper + macTaper * macTaper) / (1 + macTaper));
 
   // --- weight: use a model-selected target loading, constrained to the style band ---
-  const targetWingLoading = clamp(
-    j.targetWingLoadingGPerDM2,
-    spec.wingLoadingGPerDM2[0],
-    spec.wingLoadingGPerDM2[1],
-    mid(spec.wingLoadingGPerDM2)
-  );
-  const weightG = Math.max(val.minWeightG, Math.round(areaDM2 * targetWingLoading));
+  const motorWeightBand = motorSpec.absoluteAllUpWeightG || val.weightG || [val.minWeightG, 1900];
+  const motorLoadingMin = motorWeightBand[0] / areaDM2;
+  const motorLoadingMax = motorWeightBand[1] / areaDM2;
+  const loadingMin = Math.max(spec.wingLoadingGPerDM2[0], motorLoadingMin);
+  const loadingMax = Math.min(spec.wingLoadingGPerDM2[1], motorLoadingMax);
+  if (loadingMin > loadingMax) {
+    throw new Error(form.motor + ' cannot power a ' + wingspanMM + ' mm ' + form.style + ' within the safe wing-loading band. Select a different motor or wingspan.');
+  }
+  const targetWingLoading = clamp(j.targetWingLoadingGPerDM2, loadingMin, loadingMax, (loadingMin + loadingMax) / 2);
+  const weightBounds = val.weightG || [val.minWeightG, 1900];
+  const weightG = clampInt(Math.round(areaDM2 * targetWingLoading), weightBounds[0], weightBounds[1], Math.round(areaDM2 * targetWingLoading));
 
   // --- CG: clamp into style band ---
-  const cgPercentMAC = clampInt(j.cgPercentMAC, spec.cgPercentMAC[0], spec.cgPercentMAC[1], mid(spec.cgPercentMAC));
+  const cgBand = isWing && spec.flyingWingOverrides?.cgPercentMAC ? spec.flyingWingOverrides.cgPercentMAC : spec.cgPercentMAC;
+  const cgPercentMAC = clampInt(j.cgPercentMAC, cgBand[0], cgBand[1], mid(cgBand));
 
   // --- fuselage + tail arm ---
-  let fuselageLengthMM = clampInt(j.fuselageLengthMM, val.fuselageLengthMM[0], val.fuselageLengthMM[1], isWing ? 280 : 640);
+  const fuselageRatioBand = spec.fuselageToSpanRatio || [0.35, 1.05];
+  const fuselageMin = Math.max(val.fuselageLengthMM[0], Math.round(wingspanMM * fuselageRatioBand[0]));
+  const fuselageMax = Math.min(val.fuselageLengthMM[1], Math.round(wingspanMM * fuselageRatioBand[1]));
+  let fuselageLengthMM = clampInt(j.fuselageLengthMM, fuselageMin, fuselageMax, Math.round((fuselageMin + fuselageMax) / 2));
   let noseLengthMM = clampInt(j.noseLengthMM, 50, 320, Math.round(fuselageLengthMM * (rules.noseLengthPercentFuselage[0] / 100 + 0.03)));
   const minTailArm = rules.tailArmToMACRatio[0] * mac, maxTailArm = rules.tailArmToMACRatio[1] * mac;
   if (!isWing) {
@@ -449,30 +473,33 @@ function parseDesign(text, form, knowledge) {
     Math.round(fuselageLengthMM * rules.noseLengthPercentFuselage[1] / 100),
     noseLengthMM
   );
-  const fuselageHeightMM = clampInt(j.fuselageHeightMM, val.fuselageHeightMM[0], val.fuselageHeightMM[1], 68);
+  const fuselageHeightBand = spec.fuselageHeightToRootChordRatio || [0.2, 0.46];
+  const fuselageHeightMM = clampInt(j.fuselageHeightMM, Math.max(val.fuselageHeightMM[0], Math.round(rootChordMM * fuselageHeightBand[0])), Math.min(val.fuselageHeightMM[1], Math.round(rootChordMM * fuselageHeightBand[1])), 68);
 
   // --- horizontal tail: sized from the tail volume coefficient, not guessed ---
   let hStabSpanMM = 0, hStabChordMM = 0;
   if (cc.hasHorizontalStab) {
     const lh = Math.max(1, fuselageLengthMM - noseLengthMM);
-    const requestedTailVolume = clamp(
-      Number(j.tailVolumeCoefficient) / 100,
-      spec.tailVolumeCoefficient * 0.9,
-      spec.tailVolumeCoefficient * 1.1,
-      spec.tailVolumeCoefficient
-    );
+    const tailBand = asRange(spec.tailVolumeCoefficient, 0.05);
+    const requestedTailVolume = clamp(Number(j.tailVolumeCoefficient) / 100, tailBand[0], tailBand[1], mid(tailBand));
     const shArea = (requestedTailVolume * areaMM2 * mac) / lh;
-    const hStabAR = rules.horizontalStabAspectRatio;
-    hStabSpanMM = Math.max(val.minHStabSpanMM, Math.round(Math.sqrt(shArea * hStabAR)));
-    hStabChordMM = Math.max(45, Math.round(shArea / hStabSpanMM));
+    const hStabARRange = asRange(rules.horizontalStabAspectRatio, 0.5);
+    const hStabAR = mid(hStabARRange);
+    const hSpanBounds = val.hStabSpanMM || [val.minHStabSpanMM, 650];
+    const hChordBounds = val.hStabChordMM || [0, 240];
+    hStabSpanMM = clampInt(Math.round(Math.sqrt(shArea * hStabAR)), Math.max(140, hSpanBounds[0]), hSpanBounds[1], Math.round(Math.sqrt(shArea * hStabAR)));
+    hStabChordMM = clampInt(Math.round(shArea / hStabSpanMM), Math.max(45, hChordBounds[0]), hChordBounds[1], Math.round(shArea / hStabSpanMM));
     hStabSpanMM = Math.min(hStabSpanMM, Math.round(wingspanMM * 0.6));
   }
 
   // --- vertical tail: sized as a percentage of wing area ---
-  const vArea = (mid(spec.verticalFinPercentOfWingArea) / 100) * areaMM2;
-  const finAR = rules.verticalFinAspectRatio;
-  const vStabHeightMM = Math.max(val.minVStabHeightMM, Math.round(Math.sqrt(vArea * finAR)));
-  const vStabChordMM = Math.max(45, Math.round(vArea / vStabHeightMM));
+  const finBand = isWing && spec.flyingWingOverrides?.verticalFinPercentOfWingArea ? spec.flyingWingOverrides.verticalFinPercentOfWingArea : spec.verticalFinPercentOfWingArea;
+  const vArea = (mid(finBand) / 100) * areaMM2;
+  const finAR = mid(asRange(rules.verticalFinAspectRatio, 0.2));
+  const vHeightBounds = val.vStabHeightMM || [val.minVStabHeightMM, 280];
+  const vChordBounds = val.vStabChordMM || [45, 240];
+  const vStabHeightMM = clampInt(Math.round(Math.sqrt(vArea * finAR)), vHeightBounds[0], vHeightBounds[1], Math.round(Math.sqrt(vArea * finAR)));
+  const vStabChordMM = clampInt(Math.round(vArea / vStabHeightMM), vChordBounds[0], vChordBounds[1], Math.round(vArea / vStabHeightMM));
 
   const params = {
     name: String(j.name || 'Untitled Mk-1').slice(0, 40),
@@ -492,6 +519,9 @@ function parseDesign(text, form, knowledge) {
   if (cc.tailType === 'flyingwing') notes.unshift('Flying wing: CG is critical with no tail to mask an error — verify at the marked point before every flight.');
   if (cc.tailType === 'vtail') notes.unshift('V-tail: mount both tail panels at a dihedral angle per typical V-tail geometry (roughly 30–40° from horizontal) — they are cut flat.');
   if (cc.hasRudder) notes.unshift('Full tail: coordinate rudder with aileron on turns for a scale-like flight feel.');
+  if (wingspanMM >= (materialSpec.sparRequiredAboveWingspanMM || Infinity)) notes.unshift(form.foam + ': carbon or wood spar reinforcement is mandatory at this span.');
+  const recommendedWeight = motorSpec.recommendedAllUpWeightG || motorSpec.absoluteAllUpWeightG;
+  if (recommendedWeight && (weightG < recommendedWeight[0] || weightG > recommendedWeight[1])) notes.unshift(form.motor + ': calculated AUW is outside the preferred motor range but remains inside its absolute limit; verify propeller, battery, and measured thrust before flight.');
 
   return {
     name: params.name,
@@ -522,6 +552,6 @@ const PRINT_COLORS = { bg: '#FFFFFF', line: '#1E3A5F', dim: '#5A6B80', accent: '
 
 window.PlanLib = {
   computeStats, buildPlanSVG, SEED_DESIGNS, buildPrompt, parseDesign, THEMES, PRINT_COLORS,
-  VERSION: 6
+  VERSION: 7
 };
 })();

@@ -1,17 +1,14 @@
-# /knowledge/ — required design source-of-truth
+# /knowledge/ — mandatory engineering source of truth
 
-The app fetches ALL of these files fresh (`cache: 'no-store'`) before every
-generation. If any file is missing or empty, generation stops with a
-visible error instead of silently falling back to hardcoded rules.
+The app fetches every file below with `cache: no-store` before each generation. Missing, empty, malformed, or incompatible knowledge disables generation.
 
-- **report.md** — prose design reference, injected into the AI system prompt.
-- **equations.json** — the formulas plan-lib.js implements, documented for the model.
-- **aircraft-types.json** — per-style numeric bands (wing loading, aspect ratio, CG, tail volume, sweep). This is the source of truth the app clamps every generated design into — edit these numbers to change how aircraft are designed.
-- **design-rules.json** — control-configuration definitions (servo count, tail type) and structural rules (taper ratio, spar/hinge position, wing panel limit).
-- **validation.json** — hard min/max bounds used as a last-resort safety clamp.
-- **materials.json** — foam options shown in the UI.
-- **motors.json** — motor options shown in the UI.
+- `report.md`: reasoning sequence and coupled aerodynamic guidance.
+- `equations.json`: equations and derived comparison quantities.
+- `aircraft-types.json`: style missions, safe/preferred bands, proportions, and flying-wing overrides.
+- `design-rules.json`: structural rules, reasoning order, and control-configuration compatibility.
+- `validation.json`: global hard limits and required cross-checks.
+- `materials.json`: mass, span, chord, and reinforcement constraints.
+- `motors.json`: weight, span, propeller, battery, thrust, and thrust-to-weight guidance.
+- `novelty.json`: hangar comparison metrics, thresholds, retry policy, and minimum material differences.
 
-Delete or rename any file here and Generate will refuse to run — this is
-intentional, so the generator can never silently drift back to
-hardcoded-in-JS defaults.
+Engineering bands live here; JavaScript implements equations and enforcement. Duplicate thresholds must not be hardcoded separately in the UI.

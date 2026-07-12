@@ -1,0 +1,59 @@
+{
+  "description": "Defines deterministic comparison after validation. Lower distance means more similar.",
+  "duplicateDistanceThreshold": 0.115,
+  "warningDistanceThreshold": 0.17,
+  "minimumMaterialDifferences": 3,
+  "maxHangarItemsInPrompt": 60,
+  "maxGenerationAttempts": 3,
+  "name": {
+    "rejectExactNormalizedName": true,
+    "rejectDesignationReuse": true
+  },
+  "categoryPenalties": {
+    "differentStyle": 0.22,
+    "differentControlConfiguration": 0.22
+  },
+  "metrics": {
+    "wingspanMM": {
+      "weight": 1.0,
+      "normalizationFloor": 100,
+      "materialDifference": 0.12
+    },
+    "aspectRatio": {
+      "weight": 1.15,
+      "normalizationFloor": 1,
+      "materialDifference": 0.1
+    },
+    "taperRatio": {
+      "weight": 1.0,
+      "normalizationFloor": 0.1,
+      "materialDifference": 0.12
+    },
+    "sweepMM": {
+      "weight": 1.0,
+      "normalizationFloor": 25,
+      "materialDifference": 0.18
+    },
+    "fuselageToSpanRatio": {
+      "weight": 0.9,
+      "normalizationFloor": 0.1,
+      "materialDifference": 0.12
+    },
+    "cgPercentMAC": {
+      "weight": 0.75,
+      "absoluteScale": 10,
+      "materialDifference": 0.2
+    },
+    "tailVolumeCoefficient": {
+      "weight": 1.0,
+      "normalizationFloor": 0.1,
+      "materialDifference": 0.12
+    },
+    "wingLoadingGPerDM2": {
+      "weight": 0.9,
+      "normalizationFloor": 5,
+      "materialDifference": 0.12
+    }
+  },
+  "retryInstruction": "Change at least three material metrics while remaining within style, motor, material, and stability limits. A name change alone is never sufficient."
+}

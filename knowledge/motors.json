@@ -1,7 +1,155 @@
 [
-  { "id": "1806-2280kv", "label": "1806 · 2280KV", "class": "small park flyer" },
-  { "id": "2205-2300kv", "label": "2205 · 2300KV", "class": "sport / lightweight fighter" },
-  { "id": "2212-1000kv", "label": "2212 · 1000KV", "class": "trainer / general purpose" },
-  { "id": "2212-1400kv", "label": "2212 · 1400KV", "class": "sport / aerobatic" },
-  { "id": "2814-900kv", "label": "2814 · 900KV", "class": "larger warbird / powered glider" }
+  {
+    "id": "1806-2280kv",
+    "label": "1806 · 2280KV",
+    "class": "small park flyer",
+    "recommendedAllUpWeightG": [
+      180,
+      420
+    ],
+    "absoluteAllUpWeightG": [
+      140,
+      480
+    ],
+    "recommendedWingspanMM": [
+      500,
+      850
+    ],
+    "batteryCells": [
+      2,
+      3
+    ],
+    "propellers": [
+      "5x3",
+      "6x3"
+    ],
+    "estimatedStaticThrustG": [
+      320,
+      520
+    ],
+    "minimumThrustToWeightRatio": 0.85,
+    "notes": "Best for compact low-drag designs. Avoid large foam-board fuselages."
+  },
+  {
+    "id": "2205-2300kv",
+    "label": "2205 · 2300KV",
+    "class": "sport / lightweight fighter",
+    "recommendedAllUpWeightG": [
+      280,
+      650
+    ],
+    "absoluteAllUpWeightG": [
+      220,
+      750
+    ],
+    "recommendedWingspanMM": [
+      600,
+      1000
+    ],
+    "batteryCells": [
+      3,
+      4
+    ],
+    "propellers": [
+      "5x4.5",
+      "6x4"
+    ],
+    "estimatedStaticThrustG": [
+      600,
+      950
+    ],
+    "minimumThrustToWeightRatio": 1.0,
+    "notes": "High-RPM setup for sport, aerobatic, flying-wing, and fighter layouts."
+  },
+  {
+    "id": "2212-1000kv",
+    "label": "2212 · 1000KV",
+    "class": "trainer / general purpose",
+    "recommendedAllUpWeightG": [
+      450,
+      950
+    ],
+    "absoluteAllUpWeightG": [
+      350,
+      1100
+    ],
+    "recommendedWingspanMM": [
+      800,
+      1400
+    ],
+    "batteryCells": [
+      3
+    ],
+    "propellers": [
+      "9x4.7",
+      "10x4.5"
+    ],
+    "estimatedStaticThrustG": [
+      750,
+      1100
+    ],
+    "minimumThrustToWeightRatio": 0.75,
+    "notes": "Efficient default for trainers and larger general-purpose models."
+  },
+  {
+    "id": "2212-1400kv",
+    "label": "2212 · 1400KV",
+    "class": "sport / aerobatic",
+    "recommendedAllUpWeightG": [
+      400,
+      900
+    ],
+    "absoluteAllUpWeightG": [
+      320,
+      1000
+    ],
+    "recommendedWingspanMM": [
+      700,
+      1200
+    ],
+    "batteryCells": [
+      3
+    ],
+    "propellers": [
+      "8x6",
+      "9x5"
+    ],
+    "estimatedStaticThrustG": [
+      850,
+      1250
+    ],
+    "minimumThrustToWeightRatio": 1.0,
+    "notes": "Stronger speed and vertical performance than the 1000KV option."
+  },
+  {
+    "id": "2814-900kv",
+    "label": "2814 · 900KV",
+    "class": "large warbird / powered glider",
+    "recommendedAllUpWeightG": [
+      800,
+      1600
+    ],
+    "absoluteAllUpWeightG": [
+      650,
+      1900
+    ],
+    "recommendedWingspanMM": [
+      1100,
+      1600
+    ],
+    "batteryCells": [
+      3,
+      4
+    ],
+    "propellers": [
+      "11x5.5",
+      "12x6"
+    ],
+    "estimatedStaticThrustG": [
+      1400,
+      2200
+    ],
+    "minimumThrustToWeightRatio": 0.8,
+    "notes": "For large reinforced airframes; excessive for small lightweight models."
+  }
 ]

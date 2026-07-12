@@ -1,11 +1,75 @@
 {
-  "wingspanMM": [500, 1600],
-  "fuselageLengthMM": [200, 1400],
-  "fuselageHeightMM": [45, 130],
-  "minRootChordMM": 60,
-  "minTipChordMM": 30,
-  "minHStabSpanMM": 140,
-  "minVStabHeightMM": 60,
-  "minWeightG": 80,
-  "note": "The app clamps every generated dimension into these bounds regardless of what the model returns, so a bad or extreme model reply cannot produce a structurally nonsensical airframe."
+  "wingspanMM": [
+    500,
+    1600
+  ],
+  "fuselageLengthMM": [
+    200,
+    1400
+  ],
+  "fuselageHeightMM": [
+    45,
+    130
+  ],
+  "rootChordMM": [
+    60,
+    420
+  ],
+  "tipChordMM": [
+    30,
+    300
+  ],
+  "sweepMM": [
+    0,
+    300
+  ],
+  "noseLengthMM": [
+    50,
+    320
+  ],
+  "hStabSpanMM": [
+    0,
+    650
+  ],
+  "hStabChordMM": [
+    0,
+    240
+  ],
+  "vStabHeightMM": [
+    60,
+    280
+  ],
+  "vStabChordMM": [
+    45,
+    240
+  ],
+  "weightG": [
+    80,
+    1900
+  ],
+  "wingLoadingGPerDM2": [
+    20,
+    70
+  ],
+  "aspectRatio": [
+    3.2,
+    8.5
+  ],
+  "cgPercentMAC": [
+    19,
+    33
+  ],
+  "tailVolumeCoefficient": [
+    0.38,
+    0.68
+  ],
+  "crossChecks": {
+    "motorWeight": "Computed all-up weight must remain inside selected motor absoluteAllUpWeightG.",
+    "materialSpan": "Requested wingspan must remain inside selected material absoluteWingspanMM.",
+    "materialChord": "Root chord must be at least the material minimumRootChordMM.",
+    "flyingWing": "Elevons-only designs require flying-wing overrides for CG, sweep, taper, and fin percentage.",
+    "controlStyle": "The requested style must be listed in the control configuration allowedStyles.",
+    "tailArm": "Tailed aircraft must keep tail arm within tailArmToMACRatio.",
+    "novelty": "Candidate must pass novelty.json after engineering validation."
+  }
 }
